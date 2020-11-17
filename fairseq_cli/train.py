@@ -65,6 +65,8 @@ def main(args):
         task.load_dataset(valid_sub_split, combine=False, epoch=1)
 
     # Build model and criterion
+    # NOTE! Here build the model attention!
+    # TODO Explore build model
     model = task.build_model(args)
     criterion = task.build_criterion(args)
     logger.info(model)
