@@ -28,7 +28,7 @@ from .utils import (
 
 class BERTScorer:
     """
-    BERTScore Scorer Object.
+    BERTScore Scorer Object .
     """
 
     def __init__(
