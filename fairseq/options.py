@@ -299,6 +299,11 @@ def add_preprocess_args(parser):
                        help="Pad dictionary size to be multiple of N")
     group.add_argument("--workers", metavar="N", default=1, type=int,
                        help="number of parallel workers")
+    group.add_argument("--use-bert-in-target", action="store_true",
+                       help="Whether to use BERT target model or not.")
+    group.add_argument("--target-bert-model", metavar="N", default='bert-base-uncased', type=str,
+                       help="Pre-trained BERT model used in the BERT loss"
+                            "and needed to preprocess target language sentences.")
     # fmt: on
     return parser
 

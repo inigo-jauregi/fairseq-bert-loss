@@ -141,6 +141,7 @@ def main(args):
                 )
             pool.close()
 
+        # TODO: Use tokenizer to BERT tokenize the data.
         ds = indexed_dataset.make_builder(dataset_dest_file(args, output_prefix, lang, "bin"),
                                           impl=args.dataset_impl, vocab_size=len(vocab))
         merge_result(
