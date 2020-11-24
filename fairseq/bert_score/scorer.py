@@ -103,11 +103,16 @@ class BERTScorer:
             self._tokenizer = AutoTokenizer.from_pretrained(self.model_type)
 
         self._model = get_model(self.model_type, self.num_layers, self.all_layers)
+        self._model.requires_grad = False
         for name, param in self._model.named_parameters():
             if name.startswith('embeddings.word_embeddings.weight'):
                 emb_matrix = param
-                break
+            param.requires_grad = False
         self._emb_matrix = emb_matrix
+        # print(self._emb_matrix.requires_grad)
+        # self._emb_matrix.requires_grad = False
+        # print(self._emb_matrix.requires_grad)
+        # print(self._emb_matrix.size())
         self._model.to(self.device)
 
         self._idf_dict = None
@@ -246,7 +251,7 @@ class BERTScorer:
         return out
 
     def bert_loss_calculation(self, preds, refs, verbose=False, batch_size=64,
-                              return_hash=False, out_type='f1'):
+                              return_hash=False, out_type='f1', pad_token_id=None):
         """
         Args:
             - :param: `preds` (torch.tensor BxTxE): predicted logits
@@ -282,14 +287,15 @@ class BERTScorer:
 
         all_preds = compute_loss(
             self._model,
+            self._emb_matrix,
             refs,
             preds,
-            self._tokenizer,
+            pad_token_id,
             verbose=verbose,
             device=self.device,
             batch_size=batch_size,
             all_layers=self.all_layers,
-        ).cpu()
+        )  # .cpu()
 
         # if ref_group_boundaries is not None:
         #     max_preds = []
@@ -302,18 +308,18 @@ class BERTScorer:
 
         # out = all_preds[..., 0], all_preds[..., 1], all_preds[..., 2]  # P, R, F
         if out_type == 'f1':
-            out = all_preds[..., 2]
+            out = all_preds[2].sum()
         elif out_type == 'recall':
-            out = all_preds[..., 1]
+            out = all_preds[1].sum()
         elif out_type == 'precision':
-            out = all_preds[..., 0]
+            out = all_preds[0].sum()
 
-        if verbose:
-            time_diff = time.perf_counter() - start
-            print(f"done in {time_diff:.2f} seconds, {len(refs) / time_diff:.2f} sentences/sec")
-
-        if return_hash:
-            out = tuple([out, self.hash])
+        # if verbose:
+        #     time_diff = time.perf_counter() - start
+        #     print(f"done in {time_diff:.2f} seconds, {len(refs) / time_diff:.2f} sentences/sec")
+        #
+        # if return_hash:
+        #     out = tuple([out, self.hash])
 
         return out
 

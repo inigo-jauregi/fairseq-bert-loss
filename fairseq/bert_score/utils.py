@@ -187,7 +187,7 @@ def custom_masking(refs_tensor, pad_token, dtype=torch.long):
 
     rows, cols = refs_tensor.size()
     mask = torch.zeros(rows, cols, dtype=torch.long)
-    mask[refs_tensor == pad_token] = 1
+    mask[refs_tensor != pad_token] = 1
 
     return mask
 
@@ -204,16 +204,18 @@ def bert_encode(model, x, attention_mask, all_layers=False):
 
 
 def custom_bert_encode(model, x, attention_mask, all_layers=False, embs=False):
-    model.eval()
-    with torch.no_grad():
-        if embs:
-            out = model(input_embeds=x, attention_mask=attention_mask)
-        else:
-            out = model(x, attention_mask=attention_mask)
+    # model.eval()
+    # with torch.no_grad():
+    if embs:
+        out = model(inputs_embeds=x, attention_mask=attention_mask)
+    else:
+        out = model(x, attention_mask=attention_mask)
+
     if all_layers:
         emb = torch.stack(out[-1], dim=2)
     else:
         emb = out[0]
+
     return emb
 
 
@@ -520,7 +522,7 @@ def cache_scibert(model_type, cache_folder="~/.cache/torch/transformers"):
 
 
 def compute_loss(
-    model, refs, preds, tokenizer, verbose=False, batch_size=64, device="cuda:0", all_layers=False
+    model, emb_matrix, refs, preds, pad_token_id, verbose=False, batch_size=64, device="cuda:0", all_layers=False
 ):
     """
     Compute BERTScore.
@@ -548,40 +550,35 @@ def compute_loss(
     # stats_dict = dict()
     # for batch_start in iter_range:
     #     sen_batch = sentences[batch_start : batch_start + batch_size]
-    pred_bert_embs, pred_masks, pred_padded_idf = get_bert_embedding(
-        preds, model, tokenizer, device=device, all_layers=all_layers
-    )
-    ref_bert_embs, ref_masks, ref_padded_idf = get_bert_embedding(
-        refss, model, tokenizer, device=device, all_layers=all_layers
-    )
+    pred_bert_embs, ref_bert_embs, masks = get_bert_embedding_from_tensors(
+        preds, refs, model, emb_matrix, pad_token_id, device=device, all_layers=all_layers)
 
+    # embs = embs.cpu()
+    # masks = masks.cpu()
+    # padded_idf = padded_idf.cpu()
+    # for i, sen in enumerate(sen_batch):
+    #     sequence_len = masks[i].sum().item()
+    #     emb = embs[i, :sequence_len]
+    #     # idf = padded_idf[i, :sequence_len]
+    #     # stats_dict[sen] = (emb, idf)
 
-    embs = embs.cpu()
-    masks = masks.cpu()
-    padded_idf = padded_idf.cpu()
-    for i, sen in enumerate(sen_batch):
-        sequence_len = masks[i].sum().item()
-        emb = embs[i, :sequence_len]
-        idf = padded_idf[i, :sequence_len]
-        stats_dict[sen] = (emb, idf)
-
-    def pad_batch_stats(sen_batch, stats_dict, device):
-        stats = [stats_dict[s] for s in sen_batch]
-        emb, idf = zip(*stats)
-        emb = [e.to(device) for e in emb]
-        idf = [i.to(device) for i in idf]
-        lens = [e.size(0) for e in emb]
-        emb_pad = pad_sequence(emb, batch_first=True, padding_value=2.0)
-        idf_pad = pad_sequence(idf, batch_first=True)
-
-        def length_to_mask(lens):
-            lens = torch.tensor(lens, dtype=torch.long)
-            max_len = max(lens)
-            base = torch.arange(max_len, dtype=torch.long).expand(len(lens), max_len)
-            return base < lens.unsqueeze(1)
-
-        pad_mask = length_to_mask(lens).to(device)
-        return emb_pad, pad_mask, idf_pad
+    # def pad_batch_stats(sen_batch, stats_dict, device):
+    #     stats = [stats_dict[s] for s in sen_batch]
+    #     emb, idf = zip(*stats)
+    #     emb = [e.to(device) for e in emb]
+    #     idf = [i.to(device) for i in idf]
+    #     lens = [e.size(0) for e in emb]
+    #     emb_pad = pad_sequence(emb, batch_first=True, padding_value=2.0)
+    #     idf_pad = pad_sequence(idf, batch_first=True)
+    #
+    #     def length_to_mask(lens):
+    #         lens = torch.tensor(lens, dtype=torch.long)
+    #         max_len = max(lens)
+    #         base = torch.arange(max_len, dtype=torch.long).expand(len(lens), max_len)
+    #         return base < lens.unsqueeze(1)
+    #
+    #     pad_mask = length_to_mask(lens).to(device)
+    #     return emb_pad, pad_mask, idf_pad
 
     device = next(model.parameters()).device
     iter_range = range(0, len(refs), batch_size)
@@ -589,21 +586,22 @@ def compute_loss(
         print("computing greedy matching.")
         iter_range = tqdm(iter_range)
 
-    with torch.no_grad():
-        for batch_start in iter_range:
-            batch_refs = refs[batch_start : batch_start + batch_size]
-            batch_hyps = preds[batch_start : batch_start + batch_size]
-            ref_stats = pad_batch_stats(batch_refs, stats_dict, device)
-            hyp_stats = pad_batch_stats(batch_hyps, stats_dict, device)
+    # with torch.no_grad():
+    #     for batch_start in iter_range:
+    # batch_refs = refs[batch_start : batch_start + batch_size]
+    # batch_hyps = preds[batch_start : batch_start + batch_size]
+    # ref_stats = pad_batch_stats(batch_refs, stats_dict, device)
+    # hyp_stats = pad_batch_stats(batch_hyps, stats_dict, device)
 
-            P, R, F1 = greedy_cos_idf(*ref_stats, *hyp_stats, all_layers)
-            preds.append(torch.stack((P, R, F1), dim=-1).cpu())
-    preds = torch.cat(preds, dim=1 if all_layers else 0)
-    return preds
+    P, R, F1 = custom_greedy_cos(ref_bert_embs, masks, pred_bert_embs, masks, all_layers)
+    # preds.append(torch.stack((P, R, F1), dim=-1).cpu())
+    # preds = torch.cat(preds, dim=1 if all_layers else 0)
+
+    return P, R, F1
 
 
-def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, tokenizer,
-                                    idf_dict, batch_size=-1, device="cuda:0",
+def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix, pad_token_id,
+                                    batch_size=-1, device="cuda:0",
                                     all_layers=False):
     """
     Compute BERT embedding in batches.
@@ -616,20 +614,95 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, tokenizer,
     """
 
     # padded_sens, padded_idf, lens, mask = collate_idf(all_sens, tokenizer, idf_dict, device=device)
-    # TODO: Obtain maskin for the padded tensors in an alternative way
-    mask = custom_masking(refs_tensor, pad_token)
+    mask = custom_masking(refs_tensor, pad_token_id)
+
+    # TODO: Calculate prob*Embs matrix
+    batch_size, max_seq_len, vocab_size = preds_tensor.size()
+    emb_size = emb_matrix.size()[-1]
+    preds_tensor_embs = torch.mm(preds_tensor.view(-1, vocab_size), emb_matrix)
+    preds_tensor_embs = preds_tensor_embs.view(-1, max_seq_len, emb_size)
+    # preds_tensor_embs = torch.dot(preds_tensor, emb_matrix)
+    # print(preds_tensor_embs.size())
 
     # embeddings = []
-    with torch.no_grad():
-        preds_bert_embedding = custom_bert_encode(
-            model, preds_tensor, attention_mask=mask, all_layers=all_layers, embs=True
-        )
-        refs_bert_embedding = custom_bert_encode(
-            model, preds_tensor, attention_mask=mask, all_layers=all_layers
-        )
-        # embeddings.append(batch_embedding)
-        # del batch_embedding
+    # with torch.no_grad():
+    preds_bert_embedding = custom_bert_encode(
+        model, preds_tensor_embs, attention_mask=mask, all_layers=all_layers, embs=True
+    )
+    refs_bert_embedding = custom_bert_encode(
+        model, refs_tensor, attention_mask=mask, all_layers=all_layers
+    )
+    # embeddings.append(batch_embedding)
+    # del batch_embedding
 
     # total_embedding = torch.cat(embeddings, dim=0)
 
     return preds_bert_embedding, refs_bert_embedding, mask
+
+def custom_greedy_cos(ref_embedding, ref_masks, hyp_embedding, hyp_masks, all_layers=False):
+    """
+    Compute greedy matching based on cosine similarity.
+
+    Args:
+        - :param: `ref_embedding` (torch.Tensor):
+                   embeddings of reference sentences, BxKxd,
+                   B: batch size, K: longest length, d: bert dimenison
+        - :param: `ref_masks` (torch.LongTensor): BxKxK, BERT attention mask for
+                   reference sentences.
+        - :param: `hyp_embedding` (torch.Tensor):
+                   embeddings of candidate sentences, BxKxd,
+                   B: batch size, K: longest length, d: bert dimenison
+        - :param: `hyp_masks` (torch.LongTensor): BxKxK, BERT attention mask for
+                   candidate sentences.
+    """
+    ref_embedding.div_(torch.norm(ref_embedding, dim=-1).unsqueeze(-1))
+    hyp_embedding.div_(torch.norm(hyp_embedding, dim=-1).unsqueeze(-1))
+
+    if all_layers:
+        B, _, L, D = hyp_embedding.size()
+        hyp_embedding = hyp_embedding.transpose(1, 2).transpose(0, 1).contiguous().view(L * B, hyp_embedding.size(1), D)
+        ref_embedding = ref_embedding.transpose(1, 2).transpose(0, 1).contiguous().view(L * B, ref_embedding.size(1), D)
+    batch_size = ref_embedding.size(0)
+    sim = torch.bmm(hyp_embedding, ref_embedding.transpose(1, 2))
+    masks = torch.bmm(hyp_masks.unsqueeze(2).float(), ref_masks.unsqueeze(1).float())
+    if all_layers:
+        masks = masks.unsqueeze(0).expand(L, -1, -1, -1).contiguous().view_as(sim)
+    else:
+        masks = masks.expand(batch_size, -1, -1).contiguous().view_as(sim)
+
+    masks = masks.float().to(sim.device)
+    sim = sim * masks
+
+    word_precision = sim.max(dim=2)[0]
+    word_recall = sim.max(dim=1)[0]
+
+    # hyp_idf.div_(hyp_idf.sum(dim=1, keepdim=True))
+    # ref_idf.div_(ref_idf.sum(dim=1, keepdim=True))
+    # precision_scale = hyp_idf.to(word_precision.device)
+    # recall_scale = ref_idf.to(word_recall.device)
+    # if all_layers:
+    #     precision_scale = precision_scale.unsqueeze(0).expand(L, B, -1).contiguous().view_as(word_precision)
+    #     recall_scale = recall_scale.unsqueeze(0).expand(L, B, -1).contiguous().view_as(word_recall)
+    P = (word_precision).sum(dim=1)
+    R = (word_recall).sum(dim=1)
+    F = 2 * P * R / (P + R)
+
+    hyp_zero_mask = hyp_masks.sum(dim=1).eq(2)
+    ref_zero_mask = ref_masks.sum(dim=1).eq(2)
+
+    if all_layers:
+        P = P.view(L, B)
+        R = R.view(L, B)
+        F = F.view(L, B)
+
+    if torch.any(hyp_zero_mask):
+        print("Warning: Empty candidate sentence detected; setting precision to be 0.", file=sys.stderr)
+        P = P.masked_fill(hyp_zero_mask, 0.0)
+
+    if torch.any(ref_zero_mask):
+        print("Warning: Empty reference sentence detected; setting recall to be 0.", file=sys.stderr)
+        R = R.masked_fill(ref_zero_mask, 0.0)
+
+    F = F.masked_fill(torch.isnan(F), 0.0)
+
+    return P, R, F

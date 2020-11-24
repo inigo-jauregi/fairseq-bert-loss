@@ -4,6 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+import torch
+from torch.nn.functional import gumbel_softmax
 
 from fairseq import metrics, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
@@ -33,12 +35,18 @@ def bert_loss(lprobs, target, epsilon, ignore_index=None, reduce=True):
 @register_criterion('bert_loss')
 class BertLossCriterion(FairseqCriterion):
 
-    def __init__(self, task, bert_model):
+    def __init__(self, task, bert_model, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax):
         super().__init__(task)
 
         self.bert_model = bert_model
 
         self.bert_scorer = BERTScorer(self.bert_model)
+        self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
+
+        # Gumbel-Softmax hyperparameters
+        self.tau_gumbel_softmax = tau_gumbel_softmax
+        self.hard_gumbel_softmax = hard_gumbel_softmax
+        self.eps_gumbel_softmax = eps_gumbel_softmax
 
     @staticmethod
     def add_args(parser):
@@ -46,6 +54,22 @@ class BertLossCriterion(FairseqCriterion):
         # fmt: off
         parser.add_argument('--bert-model', default='bert-base-uncased', type=str, metavar='D',
                             help='pretrained BERT model to calculate BERT loss')
+        parser.add_argument('--tau-gumbel-softmax', default=1.0, type=float,
+                            help='Hyper-parameter tau in Gumbel-Softmax')
+        parser.add_argument('--hard-gumbel-softmax', default=False, type=bool,
+                            help='Whether is a soft or hard sample (i.e. one-hot encoding)')
+        parser.add_argument('--eps-gumbel-softmax', default=1e-10, type=float,
+                            help='Whether is a soft or hard sample (i.e. one-hot encoding)')
+        parser.add_argument("--bos", default="<s>", type=str,
+                            help="Specify bos token from the dictionary.")
+        parser.add_argument("--pad", default="<pad>", type=str,
+                            help="Specify bos token from the dictionary.")
+        parser.add_argument("--eos", default="</s>", type=str,
+                            help="Specify bos token from the dictionary.")
+        parser.add_argument("--unk", default="<unk>", type=str,
+                            help="Specify bos token from the dictionary.")
+        parser.add_argument("--tgtdict_add_sentence_limit_words_after", action="store_true",
+                            help="Add sentence limit words (i.e. bos, eos, pad, unk) after loading tgtdict.")
         # fmt: on
 
     def forward(self, model, sample, reduce=True):
@@ -58,14 +82,13 @@ class BertLossCriterion(FairseqCriterion):
         """
         # net_output: tuple (torch.tensor logits, dict(attn, inner states)
         net_output = model(**sample['net_input'])
-        # print(net_output[0].size())
+        print(net_output[0].size())
 
-        # TODO: Assert that the vocbularies match
-        loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
-        sample_size = sample['target'].size(0) if self.sentence_avg else sample['ntokens']
+        # TODO: Print vocab of bert and encoder
+        loss = self.compute_loss(model, net_output, sample, reduce=reduce)
+        sample_size = sample['ntokens']
         logging_output = {
-            'loss': loss.data,
-            'nll_loss': nll_loss.data,
+            'f1_loss': loss.data,
             'ntokens': sample['ntokens'],
             'nsentences': sample['target'].size(0),
             'sample_size': sample_size,
@@ -74,14 +97,35 @@ class BertLossCriterion(FairseqCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         lprobs = model.get_normalized_probs(net_output, log_probs=True)
-        lprobs = lprobs.view(-1, lprobs.size(-1))
-        # TODO: Gumbel-Softmax over the probability distribution
-        # TODO: Calculate prob*Embs matrix
-        target = model.get_targets(sample, net_output).view(-1, 1)
+        # probs = model.get_normalized_probs(net_output, log_probs=False)
+        # torch.manual_seed(1)  # Seed only seems to affect here
+        # print(lprobs.size())
+        # print(lprobs[0, 0, :].max())
+        # print(probs[0, 0, :].max())
+        # lprobs = lprobs.view(-1, lprobs.size(-1))
+
+        # print(self.tau_gumbel_softmax)
+        # print(self.hard_gumbel_softmax)
+        # print(self.eps_gumbel_softmax)
+        gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
+                                     eps=self.eps_gumbel_softmax, dim=-1)
+        # gsm_samples_2 = gumbel_softmax(lprobs, tau=1, hard=False, eps=1e-10, dim=-1)
+        # print(gsm_samples.size())
+        # print(gsm_samples[0, 0, :].max())
+        # print(gsm_samples_2[0, 0, :].max())
+
+        target = model.get_targets(sample, net_output)
+        # print(target[0, 10])
+        # print(len(model.decoder.dictionary.symbols))
+        # print(self.bert_scorer._tokenizer.vocab_size)
+        # print(model.decoder.dictionary.__getitem__(target[0, 10]))
+        # print(self.bert_scorer._tokenizer.convert_ids_to_tokens(int(target[0, 10])))
+        # # print(target)
+        # print(target.size())
         # loss, nll_loss = label_smoothed_nll_loss(
         #     lprobs, target, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         # )
-        loss = self.bert_scorer.bert_loss_calculation(preds,refs)
+        loss = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
         return loss
 
     @staticmethod

@@ -56,7 +56,8 @@ def main(args):
     def dict_path(lang):
         return dest_path("dict", lang) + ".txt"
 
-    def build_dictionary(filenames, src=False, tgt=False):
+    def build_dictionary(filenames, src=False, tgt=False, custom_bos='<bos>', custom_pad='<pad>', custom_eos='</s>',
+                         custom_unk='<unk>'):
         assert src ^ tgt
         return task.build_dictionary(
             filenames,
@@ -64,6 +65,10 @@ def main(args):
             threshold=args.thresholdsrc if src else args.thresholdtgt,
             nwords=args.nwordssrc if src else args.nwordstgt,
             padding_factor=args.padding_factor,
+            custom_bos=custom_bos,
+            custom_pad=custom_pad,
+            custom_eos=custom_eos,
+            custom_unk=custom_unk
         )
 
     target = not args.only_source
@@ -92,11 +97,15 @@ def main(args):
             src_dict = task.load_dictionary(args.srcdict)
         else:
             assert args.trainpref, "--trainpref must be set if --srcdict is not specified"
-            src_dict = build_dictionary([train_path(args.source_lang)], src=True)
+            src_dict = build_dictionary([train_path(args.source_lang)], src=True, custom_bos=args.bos,
+                                        custom_pad=args.pad, custom_eos=args.eos, custom_unk=args.unk)
 
         if target:
             if args.tgtdict:
-                tgt_dict = task.load_dictionary(args.tgtdict)
+                tgt_dict = \
+                    task.load_dictionary(args.tgtdict, custom_bos=args.bos, custom_pad=args.pad,
+                                         custom_eos=args.eos, custom_unk=args.unk,
+                                         add_sentence_limit_words_after=args.tgtdict_add_sentence_limit_words_after)
             else:
                 assert args.trainpref, "--trainpref must be set if --tgtdict is not specified"
                 tgt_dict = build_dictionary([train_path(args.target_lang)], tgt=True)

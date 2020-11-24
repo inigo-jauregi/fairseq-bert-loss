@@ -232,8 +232,31 @@ class TranslationTask(LegacyFairseqTask):
             raise Exception('Could not infer language pair, please provide it explicitly')
 
         # load dictionaries
-        src_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.source_lang)))
-        tgt_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.target_lang)))
+        if args.bert_model:
+            tgt_first = True
+        else:
+            tgt_first = False
+        if tgt_first:
+            tgt_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.target_lang)),
+                                           custom_bos=args.bos, custom_pad=args.pad, custom_eos=args.eos,
+                                           custom_unk=args.unk, add_sentence_limit_words_after=True)
+            bos_id_tgt = tgt_dict.bos()
+            pad_id_tgt = tgt_dict.pad()
+            eos_id_tgt = tgt_dict.eos()
+            unk_id_tgt = tgt_dict.unk()
+            src_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.source_lang)),
+                                           custom_bos=args.bos, custom_pad=args.pad, custom_eos=args.eos,
+                                           custom_unk=args.unk, add_sentence_limit_words_after=True,
+                                           tgt_first=tgt_first, bos_id_tgt=bos_id_tgt, pad_id_tgt=pad_id_tgt,
+                                           eos_id_tgt=eos_id_tgt, unk_id_tgt=unk_id_tgt)
+        else:
+            src_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.source_lang)))
+            tgt_dict = cls.load_dictionary(os.path.join(paths[0], 'dict.{}.txt'.format(args.target_lang)))
+
+        # print(src_dict.pad(), '', tgt_dict.pad())
+        # print(src_dict.bos(), '', tgt_dict.bos())
+        # print(src_dict.eos(), '', tgt_dict.eos())
+        # print(src_dict.unk(), '', tgt_dict.unk())
         assert src_dict.pad() == tgt_dict.pad()
         assert src_dict.eos() == tgt_dict.eos()
         assert src_dict.unk() == tgt_dict.unk()

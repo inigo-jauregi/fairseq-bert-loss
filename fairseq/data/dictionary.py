@@ -26,15 +26,18 @@ class Dictionary(object):
         eos="</s>",
         unk="<unk>",
         extra_special_symbols=None,
+        add_sentence_limit_words_after=False
     ):
         self.bos_word, self.unk_word, self.pad_word, self.eos_word = bos, unk, pad, eos
         self.symbols = []
         self.count = []
         self.indices = {}
-        self.bos_index = self.add_symbol(bos)
-        self.pad_index = self.add_symbol(pad)
-        self.eos_index = self.add_symbol(eos)
-        self.unk_index = self.add_symbol(unk)
+        self.add_sentence_limit_words_later = add_sentence_limit_words_after
+        if not self.add_sentence_limit_words_later:
+            self.bos_index = self.add_symbol(bos)
+            self.pad_index = self.add_symbol(pad)
+            self.eos_index = self.add_symbol(eos)
+            self.unk_index = self.add_symbol(unk)
         if extra_special_symbols:
             for s in extra_special_symbols:
                 self.add_symbol(s)
@@ -201,7 +204,9 @@ class Dictionary(object):
         return self.unk_index
 
     @classmethod
-    def load(cls, f):
+    def load(cls, f, custom_bos='<s>', custom_pad='<pad>', custom_eos='</s>', custom_unk='<unk>',
+             add_sentence_limit_words_after=False, tgt_first=False, bos_id_tgt=None, pad_id_tgt=None, eos_id_tgt=None,
+             unk_id_tgt=None):
         """Loads the dictionary from a text file with the format:
 
         ```
@@ -210,11 +215,18 @@ class Dictionary(object):
         ...
         ```
         """
-        d = cls()
-        d.add_from_file(f)
+        d = cls(bos=custom_bos, pad=custom_pad, eos=custom_eos, unk=custom_unk,
+                add_sentence_limit_words_after=add_sentence_limit_words_after)
+        d.add_from_file(f, tgt_first=tgt_first, bos_id_tgt=bos_id_tgt, pad_id_tgt=pad_id_tgt, eos_id_tgt=eos_id_tgt,
+                        unk_id_tgt=unk_id_tgt)
+        if d.add_sentence_limit_words_later:
+            d.bos_index = d.add_symbol(d.bos_word)
+            d.pad_index = d.add_symbol(d.pad_word)
+            d.eos_index = d.add_symbol(d.eos_word)
+            d.unk_index = d.add_symbol(d.unk_word)
         return d
 
-    def add_from_file(self, f):
+    def add_from_file(self, f, tgt_first=False, bos_id_tgt=None, pad_id_tgt=None, eos_id_tgt=None, unk_id_tgt=None):
         """
         Loads a pre-existing dictionary from a text file and adds its symbols
         to this instance.
@@ -222,7 +234,8 @@ class Dictionary(object):
         if isinstance(f, str):
             try:
                 with PathManager.open(f, "r", encoding="utf-8") as fd:
-                    self.add_from_file(fd)
+                    self.add_from_file(fd, tgt_first=tgt_first, bos_id_tgt=bos_id_tgt, pad_id_tgt=pad_id_tgt,
+                                       eos_id_tgt=eos_id_tgt, unk_id_tgt=unk_id_tgt)
             except FileNotFoundError as fnfe:
                 raise fnfe
             except UnicodeError:
@@ -235,30 +248,71 @@ class Dictionary(object):
         lines = f.readlines()
         indices_start_line = self._load_meta(lines)
 
-        for line in lines[indices_start_line:]:
-            try:
-                line, field = line.rstrip().rsplit(" ", 1)
-                if field == "#fairseq:overwrite":
-                    overwrite = True
-                    line, field = line.rsplit(" ", 1)
-                else:
-                    overwrite = False
-                count = int(field)
-                word = line
-                if word in self and not overwrite:
-                    raise RuntimeError(
-                        "Duplicate word found when loading Dictionary: '{}'. "
-                        "Duplicate words can overwrite earlier ones by adding the "
-                        "#fairseq:overwrite flag at the end of the corresponding row "
-                        "in the dictionary file. If using the Camembert model, please "
-                        "download an updated copy of the model file."
-                        .format(word)
+        if tgt_first:
+            i = 0
+            for line in lines[indices_start_line:]:
+                while i in [bos_id_tgt, pad_id_tgt, eos_id_tgt, unk_id_tgt]:
+                    if i == bos_id_tgt:
+                        self.add_symbol(self.bos_word)
+                        i += 1
+                    elif i == pad_id_tgt:
+                        self.add_symbol(self.pad_word)
+                        i += 1
+                    elif i == eos_id_tgt:
+                        self.add_symbol(self.eos_word)
+                        i += 1
+                    elif i == unk_id_tgt:
+                        self.add_symbol(self.unk_word)
+                        i += 1
+                try:
+                    line, field = line.rstrip().rsplit(" ", 1)
+                    if field == "#fairseq:overwrite":
+                        overwrite = True
+                        line, field = line.rsplit(" ", 1)
+                    else:
+                        overwrite = False
+                    count = int(field)
+                    word = line
+                    # if word in self and not overwrite:
+                    #     raise RuntimeError(
+                    #         "Duplicate word found when loading Dictionary: '{}'. "
+                    #         "Duplicate words can overwrite earlier ones by adding the "
+                    #         "#fairseq:overwrite flag at the end of the corresponding row "
+                    #         "in the dictionary file. If using the Camembert model, please "
+                    #         "download an updated copy of the model file."
+                    #         .format(word)
+                    #     )
+                    self.add_symbol(word, n=count, overwrite=overwrite)
+                    i += 1
+                except ValueError:
+                    raise ValueError(
+                        "Incorrect dictionary format, expected '<token> <cnt> [flags]'"
                     )
-                self.add_symbol(word, n=count, overwrite=overwrite)
-            except ValueError:
-                raise ValueError(
-                    "Incorrect dictionary format, expected '<token> <cnt> [flags]'"
-                )
+        else:
+            for line in lines[indices_start_line:]:
+                try:
+                    line, field = line.rstrip().rsplit(" ", 1)
+                    if field == "#fairseq:overwrite":
+                        overwrite = True
+                        line, field = line.rsplit(" ", 1)
+                    else:
+                        overwrite = False
+                    count = int(field)
+                    word = line
+                    if word in self and not overwrite:
+                        raise RuntimeError(
+                            "Duplicate word found when loading Dictionary: '{}'. "
+                            "Duplicate words can overwrite earlier ones by adding the "
+                            "#fairseq:overwrite flag at the end of the corresponding row "
+                            "in the dictionary file. If using the Camembert model, please "
+                            "download an updated copy of the model file."
+                            .format(word)
+                        )
+                    self.add_symbol(word, n=count, overwrite=overwrite)
+                except ValueError:
+                    raise ValueError(
+                        "Incorrect dictionary format, expected '<token> <cnt> [flags]'"
+                    )
 
     def _save(self, f, kv_iterator):
         if isinstance(f, str):
