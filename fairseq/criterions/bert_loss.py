@@ -87,7 +87,7 @@ class BertLossCriterion(FairseqCriterion):
 
         # TODO: Print vocab of bert and encoder
         loss = self.compute_loss(model, net_output, sample, reduce=reduce)
-        # print(loss)
+        print(loss)
         sample_size = sample['ntokens']
         logging_output = {
             'f1_loss': loss.data,
@@ -127,7 +127,7 @@ class BertLossCriterion(FairseqCriterion):
         # loss, nll_loss = label_smoothed_nll_loss(
         #     lprobs, target, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         # )
-        loss = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
+        loss = -self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
         return loss
 
     @staticmethod
