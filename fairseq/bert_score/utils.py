@@ -580,11 +580,11 @@ def compute_loss(
     #     pad_mask = length_to_mask(lens).to(device)
     #     return emb_pad, pad_mask, idf_pad
 
-    device = next(model.parameters()).device
-    iter_range = range(0, len(refs), batch_size)
-    if verbose:
-        print("computing greedy matching.")
-        iter_range = tqdm(iter_range)
+    # device = next(model.parameters()).device
+    # iter_range = range(0, len(refs), batch_size)
+    # if verbose:
+    #     print("computing greedy matching.")
+    #     iter_range = tqdm(iter_range)
 
     # with torch.no_grad():
     #     for batch_start in iter_range:
@@ -593,11 +593,11 @@ def compute_loss(
     # ref_stats = pad_batch_stats(batch_refs, stats_dict, device)
     # hyp_stats = pad_batch_stats(batch_hyps, stats_dict, device)
 
-    P, R, F1 = custom_greedy_cos(ref_bert_embs, masks, pred_bert_embs, masks, all_layers)
+    prec, rec, f1 = custom_greedy_cos(ref_bert_embs, masks, pred_bert_embs, masks, all_layers)
     # preds.append(torch.stack((P, R, F1), dim=-1).cpu())
     # preds = torch.cat(preds, dim=1 if all_layers else 0)
 
-    return P, R, F1
+    return prec, rec, f1
 
 
 def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix, pad_token_id,
@@ -639,6 +639,7 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
 
     return preds_bert_embedding, refs_bert_embedding, mask
 
+
 def custom_greedy_cos(ref_embedding, ref_masks, hyp_embedding, hyp_masks, all_layers=False):
     """
     Compute greedy matching based on cosine similarity.
@@ -655,8 +656,12 @@ def custom_greedy_cos(ref_embedding, ref_masks, hyp_embedding, hyp_masks, all_la
         - :param: `hyp_masks` (torch.LongTensor): BxKxK, BERT attention mask for
                    candidate sentences.
     """
-    ref_embedding.div_(torch.norm(ref_embedding, dim=-1).unsqueeze(-1))
-    hyp_embedding.div_(torch.norm(hyp_embedding, dim=-1).unsqueeze(-1))
+    # print(ref_embedding.size())
+    # print(hyp_embedding.size())
+    ref_embedding.div_(torch.norm(ref_embedding.clone(), dim=-1).unsqueeze(-1))
+    hyp_embedding.div_(torch.norm(hyp_embedding.clone(), dim=-1).unsqueeze(-1))
+    # print(ref_embedding.size())
+    # print(hyp_embedding.size())
 
     if all_layers:
         B, _, L, D = hyp_embedding.size()

@@ -82,10 +82,12 @@ class BertLossCriterion(FairseqCriterion):
         """
         # net_output: tuple (torch.tensor logits, dict(attn, inner states)
         net_output = model(**sample['net_input'])
-        print(net_output[0].size())
+        # print(net_output[0].size())
+        # torch.autograd.set_detect_anomaly(True)
 
         # TODO: Print vocab of bert and encoder
         loss = self.compute_loss(model, net_output, sample, reduce=reduce)
+        # print(loss)
         sample_size = sample['ntokens']
         logging_output = {
             'f1_loss': loss.data,

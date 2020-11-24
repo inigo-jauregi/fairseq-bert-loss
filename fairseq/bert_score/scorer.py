@@ -114,6 +114,7 @@ class BERTScorer:
         # print(self._emb_matrix.requires_grad)
         # print(self._emb_matrix.size())
         self._model.to(self.device)
+        self._emb_matrix.to(self.device)
 
         self._idf_dict = None
         if idf_sents is not None:
