@@ -512,6 +512,7 @@ class TransformerEncoder(FairseqEncoder):
         return state_dict
 
 
+# TODO Include Gumbel-SoftMax and bert-score here? Or maybe outside the decoder, on the criterion?
 class TransformerDecoder(FairseqIncrementalDecoder):
     """
     Transformer decoder consisting of *args.decoder_layers* layers. Each layer

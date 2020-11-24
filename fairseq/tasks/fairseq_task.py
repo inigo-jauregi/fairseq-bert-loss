@@ -43,17 +43,23 @@ class FairseqTask(object):
         self.dataset_to_epoch_iter = {}
 
     @classmethod
-    def load_dictionary(cls, filename):
+    def load_dictionary(cls, filename, custom_bos='<s>', custom_pad='<pad>', custom_eos='</s>', custom_unk='<unk>',
+                        add_sentence_limit_words_after=False, tgt_first=False, bos_id_tgt=None, pad_id_tgt=None,
+                        eos_id_tgt=None, unk_id_tgt=None):
         """Load the dictionary from the filename
 
         Args:
             filename (str): the filename
         """
-        return Dictionary.load(filename)
+        return Dictionary.load(filename, custom_bos=custom_bos, custom_pad=custom_pad, custom_eos=custom_eos,
+                               custom_unk=custom_unk, add_sentence_limit_words_after=add_sentence_limit_words_after,
+                               tgt_first=tgt_first, bos_id_tgt=bos_id_tgt, pad_id_tgt=pad_id_tgt, eos_id_tgt=eos_id_tgt,
+                               unk_id_tgt=unk_id_tgt)
 
     @classmethod
     def build_dictionary(
-        cls, filenames, workers=1, threshold=-1, nwords=-1, padding_factor=8
+        cls, filenames, workers=1, threshold=-1, nwords=-1, padding_factor=8, custom_bos='<s>', custom_pad='<pad>',
+            custom_eos='</s>', custom_unk='<unk>'
     ):
         """Build the dictionary
 
@@ -67,7 +73,7 @@ class FairseqTask(object):
                 multiple of 8, which is important on some hardware (e.g., Nvidia
                 Tensor Cores).
         """
-        d = Dictionary()
+        d = Dictionary(bos=custom_bos, pad=custom_pad, eos=custom_eos, unk=custom_unk)
         for filename in filenames:
             Dictionary.add_file_to_dictionary(
                 filename, d, tokenizer.tokenize_line, workers

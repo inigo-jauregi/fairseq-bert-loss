@@ -280,6 +280,16 @@ def add_preprocess_args(parser):
                        help="map words appearing less than threshold times to unknown")
     group.add_argument("--tgtdict", metavar="FP",
                        help="reuse given target dictionary")
+    group.add_argument("--bos", default="<s>", type=str,
+                       help="Specify bos token from the dictionary.")
+    group.add_argument("--pad", default="<pad>", type=str,
+                       help="Specify bos token from the dictionary.")
+    group.add_argument("--eos", default="</s>", type=str,
+                       help="Specify bos token from the dictionary.")
+    group.add_argument("--unk", default="<unk>", type=str,
+                       help="Specify bos token from the dictionary.")
+    group.add_argument("--tgtdict_add_sentence_limit_words_after", action="store_true",
+                       help="Add sentence limit words (i.e. bos, eos, pad, unk) after loading tgtdict.")
     group.add_argument("--srcdict", metavar="FP",
                        help="reuse given source dictionary")
     group.add_argument("--nwordstgt", metavar="N", default=-1, type=int,
@@ -299,6 +309,11 @@ def add_preprocess_args(parser):
                        help="Pad dictionary size to be multiple of N")
     group.add_argument("--workers", metavar="N", default=1, type=int,
                        help="number of parallel workers")
+    # group.add_argument("--use-bert-in-target", action="store_true",
+    #                    help="Whether to use BERT target model or not.")
+    # group.add_argument("--target-bert-model", metavar="N", default='bert-base-uncased', type=str,
+    #                    help="Pre-trained BERT model used in the BERT loss"
+    #                         "and needed to preprocess target language sentences.")
     # fmt: on
     return parser
 
