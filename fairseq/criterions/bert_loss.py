@@ -86,12 +86,13 @@ class BertLossCriterion(FairseqCriterion):
         # torch.autograd.set_detect_anomaly(True)
 
         # TODO: Print vocab of bert and encoder
-        loss = self.compute_loss(model, net_output, sample, reduce=reduce)
-        print(loss)
+        loss, f_bert = self.compute_loss(model, net_output, sample, reduce=reduce)
+        # print(loss)
         sample_size = sample['ntokens']
         logging_output = {
-            'f1_loss': loss.data,
-            'ntokens': sample['ntokens'],
+            'loss': loss.data,
+            'f_bert': f_bert.data,
+            # 'ntokens': sample['ntokens'],
             'nsentences': sample['target'].size(0),
             'sample_size': sample_size,
         }
@@ -127,20 +128,24 @@ class BertLossCriterion(FairseqCriterion):
         # loss, nll_loss = label_smoothed_nll_loss(
         #     lprobs, target, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         # )
-        loss = -self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
-        return loss
+        f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
+
+        # loss = -torch.log(f_bert)
+        loss = -f_bert
+
+        return loss, f_bert
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
         loss_sum = sum(log.get('loss', 0) for log in logging_outputs)
-        nll_loss_sum = sum(log.get('nll_loss', 0) for log in logging_outputs)
-        ntokens = sum(log.get('ntokens', 0) for log in logging_outputs)
+        f_bert_sum = sum(log.get('f_bert', 0) for log in logging_outputs)
+        # ntokens = sum(log.get('ntokens', 0) for log in logging_outputs)
         sample_size = sum(log.get('sample_size', 0) for log in logging_outputs)
 
         metrics.log_scalar('loss', loss_sum / sample_size / math.log(2), sample_size, round=3)
-        metrics.log_scalar('nll_loss', nll_loss_sum / ntokens / math.log(2), ntokens, round=3)
-        metrics.log_derived('ppl', lambda meters: utils.get_perplexity(meters['nll_loss'].avg))
+        metrics.log_scalar('f_bert', f_bert_sum / sample_size / math.log(2), sample_size, round=3)
+        metrics.log_derived('ppl', lambda meters: utils.get_perplexity(meters['loss'].avg))
 
     @staticmethod
     def logging_outputs_can_be_summed() -> bool:
