@@ -239,6 +239,18 @@ def get_parser(desc, default_task="translation"):
     parser.add_argument('--quantization-config-path', default=None,
                         help='path to quantization config file')
     parser.add_argument('--profile', action='store_true', help='enable autograd profiler emit_nvtx')
+    parser.add_argument('--bert-model', default=None, type=str, metavar='D',
+                        help='pretrained BERT model to calculate BERT loss')
+    parser.add_argument("--bos", default="<s>", type=str,
+                        help="Specify bos token from the dictionary.")
+    parser.add_argument("--pad", default="<pad>", type=str,
+                        help="Specify bos token from the dictionary.")
+    parser.add_argument("--eos", default="</s>", type=str,
+                        help="Specify bos token from the dictionary.")
+    parser.add_argument("--unk", default="<unk>", type=str,
+                        help="Specify bos token from the dictionary.")
+    parser.add_argument("--tgtdict_add_sentence_limit_words_after", action="store_true",
+                        help="Add sentence limit words (i.e. bos, eos, pad, unk) after loading tgtdict.")
 
     from fairseq.registry import REGISTRIES
     for registry_name, REGISTRY in REGISTRIES.items():

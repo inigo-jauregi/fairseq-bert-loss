@@ -183,10 +183,10 @@ def padding(arr, pad_token, dtype=torch.long):
     return padded, lens, mask
 
 
-def custom_masking(refs_tensor, pad_token, dtype=torch.long):
+def custom_masking(refs_tensor, pad_token, device="cuda:0", dtype=torch.long):
 
     rows, cols = refs_tensor.size()
-    mask = torch.zeros(rows, cols, dtype=torch.long)
+    mask = torch.zeros(rows, cols, dtype=torch.long).to(device)
     mask[refs_tensor != pad_token] = 1
 
     return mask
@@ -614,7 +614,7 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
     """
 
     # padded_sens, padded_idf, lens, mask = collate_idf(all_sens, tokenizer, idf_dict, device=device)
-    mask = custom_masking(refs_tensor, pad_token_id)
+    mask = custom_masking(refs_tensor, pad_token_id, device)
 
     # TODO: Calculate prob*Embs matrix
     batch_size, max_seq_len, vocab_size = preds_tensor.size()

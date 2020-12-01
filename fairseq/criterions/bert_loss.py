@@ -116,7 +116,7 @@ class BertLossCriterion(FairseqCriterion):
         # print(gsm_samples.size())
         # print(gsm_samples[0, 0, :].max())
         # print(gsm_samples_2[0, 0, :].max())
-
+        # print(gsm_samples.device)
         target = model.get_targets(sample, net_output)
         # print(target[0, 10])
         # print(len(model.decoder.dictionary.symbols))
