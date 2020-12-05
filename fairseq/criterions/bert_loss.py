@@ -60,16 +60,16 @@ class BertLossCriterion(FairseqCriterion):
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
         parser.add_argument('--eps-gumbel-softmax', default=1e-10, type=float,
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
-        parser.add_argument("--bos", default="<s>", type=str,
-                            help="Specify bos token from the dictionary.")
-        parser.add_argument("--pad", default="<pad>", type=str,
-                            help="Specify bos token from the dictionary.")
-        parser.add_argument("--eos", default="</s>", type=str,
-                            help="Specify bos token from the dictionary.")
-        parser.add_argument("--unk", default="<unk>", type=str,
-                            help="Specify bos token from the dictionary.")
-        parser.add_argument("--tgtdict_add_sentence_limit_words_after", action="store_true",
-                            help="Add sentence limit words (i.e. bos, eos, pad, unk) after loading tgtdict.")
+        # parser.add_argument("--bos", default="<s>", type=str,
+        #                     help="Specify bos token from the dictionary.")
+        # parser.add_argument("--pad", default="<pad>", type=str,
+        #                     help="Specify bos token from the dictionary.")
+        # parser.add_argument("--eos", default="</s>", type=str,
+        #                     help="Specify bos token from the dictionary.")
+        # parser.add_argument("--unk", default="<unk>", type=str,
+        #                     help="Specify bos token from the dictionary.")
+        # parser.add_argument("--tgtdict_add_sentence_limit_words_after", action="store_true",
+        #                     help="Add sentence limit words (i.e. bos, eos, pad, unk) after loading tgtdict.")
         # fmt: on
 
     def forward(self, model, sample, reduce=True):

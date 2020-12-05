@@ -239,7 +239,7 @@ def get_parser(desc, default_task="translation"):
     parser.add_argument('--quantization-config-path', default=None,
                         help='path to quantization config file')
     parser.add_argument('--profile', action='store_true', help='enable autograd profiler emit_nvtx')
-    parser.add_argument('--bert-model', default=None, type=str, metavar='D',
+    parser.add_argument('--use-bert-model', action='store_true',
                         help='pretrained BERT model to calculate BERT loss')
     parser.add_argument("--bos", default="<s>", type=str,
                         help="Specify bos token from the dictionary.")

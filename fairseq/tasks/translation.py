@@ -232,7 +232,7 @@ class TranslationTask(LegacyFairseqTask):
             raise Exception('Could not infer language pair, please provide it explicitly')
 
         # load dictionaries
-        if args.bert_model:
+        if args.use_bert_model:
             tgt_first = True
         else:
             tgt_first = False
