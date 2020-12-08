@@ -1,15 +1,18 @@
 DATASET_FOLDER=datasets/de-en_TEDtalks
-MODEL=models/BAS_TRANS_try/checkpoints
-
-# Obtain target
-grep ^T $DATASET_FOLDER/$MODEL/output2.txt | cut -f2 > $DATASET_FOLDER/$MODEL/target2.txt
+REF=dev/tst2012_tst2013.tok.clean.lwc.bpe.en
+MODEL=models/BAS_TRANS_bert_hard_gumbel/checkpoints
+EPOCH=1.dev
 
 # Obtain predictions
-grep ^H $DATASET_FOLDER/$MODEL/output2.txt | cut -f3 > $DATASET_FOLDER/$MODEL/hypothesis2.txt
+grep ^H $DATASET_FOLDER/$MODEL/output$EPOCH.txt | cut -f3 > $DATASET_FOLDER/$MODEL/hypothesis$EPOCH.txt
 
+
+# Re-order predictions
+python scripts/re_order_preds.py $DATASET_FOLDER/$MODEL/output$EPOCH.txt $DATASET_FOLDER/$MODEL/hypothesis$EPOCH.txt $DATASET_FOLDER/$MODEL/hypothesis.ord.$EPOCH.txt
   
 
 # Compute BLEU normal
-perl mosesdecoder/scripts/generic/multi-bleu.perl $DATASET_FOLDER/$MODEL/target2.txt < $DATASET_FOLDER/$MODEL/hypothesis2.txt > $DATASET_FOLDER/$MODEL/BLEU2.txt
+perl mosesdecoder/scripts/generic/multi-bleu.perl $DATASET_FOLDER/$REF < $DATASET_FOLDER/$MODEL/hypothesis.ord.$EPOCH.txt > $DATASET_FOLDER/$MODEL/BLEU$EPOCH.txt
 
-  
+# Compute BERT scores
+python scripts/bert_score.py bert-base-uncased $DATASET_FOLDER/$MODEL/hypothesis.ord.$EPOCH.txt $DATASET_FOLDER/$REF $DATASET_FOLDER/$MODEL/BERT$EPOCH.txt cuda:0

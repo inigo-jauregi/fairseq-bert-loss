@@ -286,6 +286,15 @@ class BERTScorer:
         #     idf_dict[self._tokenizer.sep_token_id] = 0
         #     idf_dict[self._tokenizer.cls_token_id] = 0
 
+        # with torch.no_grad():
+        #     all_vals = torch.zeros(1).to(self.device)
+        # #     val = torch.sum(self._emb_matrix)
+        # #     print('Sum: ', str(val))
+        #     for p in self._model.parameters():
+        #         val = torch.sum(p)
+        #         all_vals += val
+        #     print('Sum model_val: ', str(all_vals))
+
         all_preds = compute_loss(
             self._model,
             self._emb_matrix,

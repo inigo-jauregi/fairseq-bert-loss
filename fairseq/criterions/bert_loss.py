@@ -56,7 +56,7 @@ class BertLossCriterion(FairseqCriterion):
                             help='pretrained BERT model to calculate BERT loss')
         parser.add_argument('--tau-gumbel-softmax', default=1.0, type=float,
                             help='Hyper-parameter tau in Gumbel-Softmax')
-        parser.add_argument('--hard-gumbel-softmax', default=False, type=bool,
+        parser.add_argument('--hard-gumbel-softmax', action="store_true",
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
         parser.add_argument('--eps-gumbel-softmax', default=1e-10, type=float,
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
@@ -145,7 +145,7 @@ class BertLossCriterion(FairseqCriterion):
 
         metrics.log_scalar('loss', loss_sum / sample_size / math.log(2), sample_size, round=3)
         metrics.log_scalar('f_bert', f_bert_sum / sample_size / math.log(2), sample_size, round=3)
-        metrics.log_derived('ppl', lambda meters: utils.get_perplexity(meters['loss'].avg))
+        # metrics.log_derived('ppl', lambda meters: utils.get_perplexity(meters['loss'].avg))
 
     @staticmethod
     def logging_outputs_can_be_summed() -> bool:
