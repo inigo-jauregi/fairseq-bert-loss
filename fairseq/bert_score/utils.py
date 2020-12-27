@@ -619,7 +619,7 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
     # TODO: Calculate prob*Embs matrix
     batch_size, max_seq_len, vocab_size = preds_tensor.size()
     emb_size = emb_matrix.size()[-1]
-    preds_tensor_embs = torch.mm(preds_tensor.view(-1, vocab_size), emb_matrix)
+    preds_tensor_embs = torch.mm(preds_tensor.contiguous().view(-1, vocab_size), emb_matrix)
     preds_tensor_embs = preds_tensor_embs.view(-1, max_seq_len, emb_size)
     # preds_tensor_embs = torch.dot(preds_tensor, emb_matrix)
     # print(preds_tensor_embs.size())

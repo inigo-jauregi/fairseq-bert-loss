@@ -4,9 +4,13 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+from torch.distributions import Categorical
 
 from fairseq import metrics, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
+
+from fairseq.bert_score.score import score
+import numpy as np
 
 
 def label_smoothed_nll_loss(lprobs, target, epsilon, ignore_index=None, reduce=True):
@@ -37,6 +41,10 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         self.sentence_avg = sentence_avg
         self.eps = label_smoothing
 
+        # File
+        self.loss_stats_file = open('stats_nll_w_fbert.txt', 'w')
+        self.loss_stats_file.write('average_entropy\taccuracy\tNLL_loss\tF_BERT_eval\n')
+
     @staticmethod
     def add_args(parser):
         """Add criterion-specific arguments to the parser."""
@@ -54,7 +62,7 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         3) logging outputs to display while training
         """
         net_output = model(**sample['net_input'])
-        loss, nll_loss = self.compute_loss(model, net_output, sample, reduce=reduce)
+        loss, nll_loss, n_correct, total_n = self.compute_loss(model, net_output, sample, reduce=reduce)
         sample_size = sample['target'].size(0) if self.sentence_avg else sample['ntokens']
         logging_output = {
             'loss': loss.data,
@@ -62,6 +70,8 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
             'ntokens': sample['ntokens'],
             'nsentences': sample['target'].size(0),
             'sample_size': sample_size,
+            'n_correct': n_correct,
+            'total_n': total_n
         }
         return loss, sample_size, logging_output
 
@@ -69,10 +79,61 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         lprobs = model.get_normalized_probs(net_output, log_probs=True)
         lprobs = lprobs.view(-1, lprobs.size(-1))
         target = model.get_targets(sample, net_output).view(-1, 1)
+        my_target = model.get_targets(sample, net_output)
+
+        # Calculate entropy
+        probs = model.get_normalized_probs(net_output, log_probs=False)
+        average_entropy = 0.
+        rows, cols = my_target.size()
+        refs_list = []
+        preds_list = []
+        for i in range(rows):
+            ref_sentence = []
+            pred_sentence = []
+            for j in range(cols):
+                ref_word = model.decoder.dictionary.__getitem__(my_target[i, j].cpu().detach().numpy())
+                pred_word = model.decoder.dictionary.__getitem__(probs[i, j].argmax().cpu().detach().numpy())
+                prob_entropy = Categorical(probs[i, j, :]).entropy().cpu().detach().numpy()
+                if my_target[i, j] != model.decoder.dictionary.pad_index:
+                    average_entropy += prob_entropy
+                    ref_sentence.append(ref_word)
+                    pred_sentence.append(pred_word)
+            refs_list.append(" ".join(ref_sentence))
+            preds_list.append(" ".join(pred_sentence))
+            # print(" ".join(ref_sentence))
+            # print(" ".join(pred_sentence))
+        average_entropy = average_entropy / (rows * cols)
+
+
+        # Calculate F-BERT
+        results = score(preds_list, refs_list, model_type='bert-base-uncased', device='cuda:0', verbose=False)
+        f1_avg_results = np.average(results[2].detach().cpu().numpy())
+        # print(f1_avg_results)
+
+        # Calculate accuracy
+        acc_target = target.squeeze()
+        pred = lprobs.max(1)[1].squeeze()
+        non_padding = acc_target.ne(model.decoder.dictionary.pad_index).squeeze()
+        total_num = non_padding.sum()
+        num_correct = pred.eq(acc_target) \
+            .masked_select(non_padding) \
+            .sum()
+        # print(num_correct)
+        # print(total_num)
+        # print(num_correct.detach().cpu().numpy()/total_num.detach().cpu().numpy())
+
         loss, nll_loss = label_smoothed_nll_loss(
             lprobs, target, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         )
-        return loss, nll_loss
+
+        # batch_size = target.size()[0]
+        print_acc = (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100
+        print_nll_loss = nll_loss.detach().cpu().numpy() / total_num.detach().cpu().numpy()
+
+        self.loss_stats_file.write(str(average_entropy) + '\t' + str(print_acc) + '\t' + str(print_nll_loss) + '\t'
+                                   + str(f1_avg_results) + '\n')
+
+        return loss, nll_loss, num_correct, total_num
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
@@ -81,9 +142,12 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         nll_loss_sum = sum(log.get('nll_loss', 0) for log in logging_outputs)
         ntokens = sum(log.get('ntokens', 0) for log in logging_outputs)
         sample_size = sum(log.get('sample_size', 0) for log in logging_outputs)
+        n_correct = sum(log.get('n_correct', 0) for log in logging_outputs)
+        total_n = sum(log.get('total_n', 0) for log in logging_outputs)
 
         metrics.log_scalar('loss', loss_sum / sample_size / math.log(2), sample_size, round=3)
         metrics.log_scalar('nll_loss', nll_loss_sum / ntokens / math.log(2), ntokens, round=3)
+        metrics.log_scalar('accuracy', float(n_correct) / float(total_n), total_n, round=3)
         metrics.log_derived('ppl', lambda meters: utils.get_perplexity(meters['nll_loss'].avg))
 
     @staticmethod
