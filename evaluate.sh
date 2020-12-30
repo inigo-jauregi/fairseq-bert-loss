@@ -1,6 +1,6 @@
 DATASET_FOLDER=datasets/de-en_TEDtalks
 REF=test/tst2014_tst2015.tok.clean.lwc.bpe.en
-MODEL=models/BAS_BERT_tau_0.1_1_epoch_FT/checkpoints
+MODEL=models/BAS_ALIGNED_BERT_RAW_FT/checkpoints
 EPOCH=_best.test
 
 # Obtain predictions
