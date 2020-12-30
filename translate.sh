@@ -1,6 +1,6 @@
 
 DATASET_FOLDER=datasets/de-en_TEDtalks
-MODEL=models/BAS_BERT_tau_0.1_1_epoch_FT
+MODEL=models/BAS_ALIGNED_BERT_RAW_FT
 EPOCH=_best
 CUDA_VISIBLE_DEVICES=0 fairseq-generate $DATASET_FOLDER/preprocess_bert_try \
              --path $DATASET_FOLDER/$MODEL/checkpoints/checkpoint$EPOCH.pt \
