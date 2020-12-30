@@ -5,7 +5,7 @@
 
 import math
 import torch
-from torch.nn import CosineEmbeddingLoss
+from torch.nn import CosineEmbeddingLoss, CosineSimilarity
 from torch.nn.functional import gumbel_softmax
 from torch.distributions import Categorical
 
@@ -56,10 +56,11 @@ class AlignedBertLossCriterion(FairseqCriterion):
 
         # Cosine loss
         self.cos_loss = CosineEmbeddingLoss()
+        self.cos_sim = CosineSimilarity(dim=1)
 
         # File
         self.loss_stats_file = open('stats_aligned_bert_raw.txt', 'w')
-        self.loss_stats_file.write('average_entropy\taccuracy\tBERT_loss\tF_BERT_eval\n')
+        self.loss_stats_file.write('accuracy\tBERT_loss\n')
 
     @staticmethod
     def add_args(parser):
@@ -114,9 +115,9 @@ class AlignedBertLossCriterion(FairseqCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         lprobs = model.get_normalized_probs(net_output, log_probs=True)
-        gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
+        # gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
         # print(lprobs.size())
-        # gsm_samples = self.sparsemax(lprobs, 2)
+        gsm_samples = self.sparsemax(lprobs, 2)
         # print(gsm_samples.size())
 
         # torch.manual_seed(1)  # Seed only seems to affect here
@@ -138,27 +139,27 @@ class AlignedBertLossCriterion(FairseqCriterion):
         target = model.get_targets(sample, net_output)
 
         # Calculate entropy
-        probs = model.get_normalized_probs(net_output, log_probs=False)
-        average_entropy = 0.
-        rows, cols = target.size()
-        refs_list = []
-        preds_list = []
-        for i in range(rows):
-            ref_sentence = []
-            pred_sentence = []
-            for j in range(cols):
-                ref_word = model.decoder.dictionary.__getitem__(target[i, j].cpu().detach().numpy())
-                pred_word = model.decoder.dictionary.__getitem__(gsm_samples[i, j].argmax().cpu().detach().numpy())
-                prob_entropy = Categorical(gsm_samples[i, j, :]).entropy().cpu().detach().numpy()
-                if target[i, j] != self.pad_token_id:
-                    average_entropy += prob_entropy
-                    ref_sentence.append(ref_word)
-                    pred_sentence.append(pred_word)
-            refs_list.append(" ".join(ref_sentence))
-            preds_list.append(" ".join(pred_sentence))
-            # print('Tgt:  ', " ".join(tmp_target_words))
-            # print('Pred:  ', " ".join(tmp_pred_words))
-        average_entropy = average_entropy / (rows*cols)
+        # probs = model.get_normalized_probs(net_output, log_probs=False)
+        # average_entropy = 0.
+        # rows, cols = target.size()
+        # refs_list = []
+        # preds_list = []
+        # for i in range(rows):
+        #     ref_sentence = []
+        #     pred_sentence = []
+        #     for j in range(cols):
+        #         ref_word = model.decoder.dictionary.__getitem__(target[i, j].cpu().detach().numpy())
+        #         pred_word = model.decoder.dictionary.__getitem__(gsm_samples[i, j].argmax().cpu().detach().numpy())
+        #         prob_entropy = Categorical(gsm_samples[i, j, :]).entropy().cpu().detach().numpy()
+        #         if target[i, j] != self.pad_token_id:
+        #             average_entropy += prob_entropy
+        #             ref_sentence.append(ref_word)
+        #             pred_sentence.append(pred_word)
+        #     refs_list.append(" ".join(ref_sentence))
+        #     preds_list.append(" ".join(pred_sentence))
+        #     # print('Tgt:  ', " ".join(tmp_target_words))
+        #     # print('Pred:  ', " ".join(tmp_pred_words))
+        # average_entropy = average_entropy / (rows*cols)
 
         # print(target[0, 10])
         # print(len(model.decoder.dictionary.symbols))
@@ -183,15 +184,19 @@ class AlignedBertLossCriterion(FairseqCriterion):
         pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
         # print(target_contextual_embs_v.size())
         # print(pred_contextual_embs_v.size())
-        loss = self.cos_loss(target_contextual_embs_v, pred_contextual_embs_v,
+        loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
                              torch.tensor(1.0).to(self.bert_scorer.device))
+        # loss = torch.log(loss)
+        # sim = self.cos_sim(pred_contextual_embs_v, target_contextual_embs_v)
+        # print('loss ', loss)
+        # print('sim: ', torch.sum(sim))
 
         # loss = -torch.log(f_bert)
 
         # Calculate F-BERT
-        results = score(preds_list, refs_list, model_type='bert-base-uncased', device=self.bert_scorer.device,
-                        verbose=False)
-        f1_avg_results = np.average(results[2].detach().cpu().numpy())
+        # results = score(preds_list, refs_list, model_type='bert-base-uncased', device=self.bert_scorer.device,
+        #                 verbose=False)
+        # f1_avg_results = np.average(results[2].detach().cpu().numpy())
         # print(f1_avg_results)
 
         # Calculate accuracy
@@ -210,9 +215,8 @@ class AlignedBertLossCriterion(FairseqCriterion):
         # print('Accuracy: ', (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100, '%')
         # print('F-Bert: ', (f_bert/batch_size).detach().cpu().numpy())
         print_acc = (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100
-        print_loss = (loss/batch_size).detach().cpu().numpy()
-        self.loss_stats_file.write(str(average_entropy) + '\t' + str(print_acc) + '\t' + str(print_loss) +
-                                   '\t' + str(f1_avg_results) + '\n')
+        print_loss = (loss).detach().cpu().numpy()
+        self.loss_stats_file.write(str(print_acc) + '\t' + str(print_loss) + '\n')
 
         return loss, num_correct, total_num
 

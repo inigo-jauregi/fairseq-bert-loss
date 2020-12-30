@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-nll_entropy = open('../stats_nll_w_fbert.txt')
+nll_entropy = open('../stats_bert_GUMBEL_TAU_1e-5_FT.txt')
 list_nll_entropy = []
 list_nll_accuracy = []
 list_nll_nll = []
@@ -12,6 +12,8 @@ for line in nll_entropy:
         list_nll_accuracy.append(float(line.strip().split('\t')[1]))
         # list_nll_nll.append(float(line.strip().split('\t')[2]))
         list_nll_f1_eval.append(float(line.strip().split('\t')[3]))
+        # splitted_score = line.strip().split('\t')[2].split('.')
+        # list_nll_f1_eval.append(float(".".join([splitted_score[1][-2:], splitted_score[2]])))
     else:
         headline = True
 
@@ -29,6 +31,7 @@ for i in range(len(list_nll_f1_eval) // batch_size):
 
 
 plt.plot(x_axis_avg, average_y, 'b', label='F1-Eval')
-plt.ylabel('F1-Eval (%)')
-plt.title('NLL 10 epochs')
+plt.ylabel('Accuracy (%)')
+# plt.ylabel('F-BERT (%)')
+plt.title('BERT_loss Fine-Tuning (Gumbel-Softmax) 10 epochs')
 plt.show()

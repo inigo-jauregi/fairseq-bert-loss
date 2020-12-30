@@ -53,7 +53,7 @@ class BertLossCriterion(FairseqCriterion):
         self.eps_gumbel_softmax = eps_gumbel_softmax
 
         # File
-        self.loss_stats_file = open('stats_bert_sparsemax.txt', 'w')
+        self.loss_stats_file = open('stats_bert_GUMBEL_TAU_1e-5_FT.txt', 'w')
         self.loss_stats_file.write('average_entropy\taccuracy\tF_BERT\tF_BERT_eval\n')
 
     @staticmethod
@@ -110,9 +110,9 @@ class BertLossCriterion(FairseqCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         lprobs = model.get_normalized_probs(net_output, log_probs=True)
-        # gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
+        gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
         # print(lprobs.size())
-        gsm_samples = self.sparsemax(lprobs,2)
+        # gsm_samples = self.sparsemax(lprobs,2)
         # print(gsm_samples.size())
 
 
@@ -125,8 +125,8 @@ class BertLossCriterion(FairseqCriterion):
         # print(self.tau_gumbel_softmax)
         # print(self.hard_gumbel_softmax)
         # print(self.eps_gumbel_softmax)
-        # gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
-        #                              eps=self.eps_gumbel_softmax, dim=-1)
+        gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
+                                     eps=self.eps_gumbel_softmax, dim=-1)
         # gsm_samples_2 = gumbel_softmax(lprobs, tau=1, hard=False, eps=1e-10, dim=-1)
         # print(gsm_samples.size())
         # print(gsm_samples[0, 0, :].max())
@@ -194,7 +194,8 @@ class BertLossCriterion(FairseqCriterion):
         # print('F-Bert: ', (f_bert/batch_size).detach().cpu().numpy())
         print_acc = (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100
         print_f1 = (f_bert/batch_size).detach().cpu().numpy()
-        self.loss_stats_file.write(str(average_entropy) + '\t' + str(print_acc) + '\t' + str(print_f1) + '\n')
+        self.loss_stats_file.write(str(average_entropy) + '\t' + str(print_acc) + '\t' +
+                                   str(f_bert.detach().cpu().numpy()) + '\t' + str(print_f1) + '\n')
 
         return loss, f_bert, num_correct, total_num
 
