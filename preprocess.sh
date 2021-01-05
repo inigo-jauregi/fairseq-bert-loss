@@ -1,7 +1,7 @@
-TEXT=datasets/de-en_TEDtalks
+TEXT=datasets/de-en_IWSLT2014/data
 fairseq-preprocess --source-lang de --target-lang en \
-    --trainpref $TEXT/train/train.tok.clean.lwc.bpe --validpref $TEXT/dev/tst2012_tst2013.tok.clean.lwc.bpe \
-    --testpref $TEXT/dev/tst2012_tst2013.tok.clean.lwc.bpe \
-    --destdir $TEXT/preprocess_bert_try_dev --tgtdict ./pretrained-LMs/bert-base-uncased/vocab_dict.txt \
+    --trainpref $TEXT/train/train_no_val.tok.clean.lwc.bpe --validpref $TEXT/dev/dev.tok.clean.lwc.bpe \
+    --testpref $TEXT/test/tst2012.tok.clean.lwc.bpe \
+    --destdir $TEXT/prep_files/preprocess_tst2012 --tgtdict ./pretrained-LMs/bert-base-uncased/vocab_dict.txt \
     --bos [unused0] --pad [PAD] --eos [unused1] --unk [UNK] \
     --tgtdict_add_sentence_limit_words_after

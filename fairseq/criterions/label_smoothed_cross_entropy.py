@@ -82,32 +82,32 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         my_target = model.get_targets(sample, net_output)
 
         # Calculate entropy
-        probs = model.get_normalized_probs(net_output, log_probs=False)
-        average_entropy = 0.
-        rows, cols = my_target.size()
-        refs_list = []
-        preds_list = []
-        for i in range(rows):
-            ref_sentence = []
-            pred_sentence = []
-            for j in range(cols):
-                ref_word = model.decoder.dictionary.__getitem__(my_target[i, j].cpu().detach().numpy())
-                pred_word = model.decoder.dictionary.__getitem__(probs[i, j].argmax().cpu().detach().numpy())
-                prob_entropy = Categorical(probs[i, j, :]).entropy().cpu().detach().numpy()
-                if my_target[i, j] != model.decoder.dictionary.pad_index:
-                    average_entropy += prob_entropy
-                    ref_sentence.append(ref_word)
-                    pred_sentence.append(pred_word)
-            refs_list.append(" ".join(ref_sentence))
-            preds_list.append(" ".join(pred_sentence))
-            # print(" ".join(ref_sentence))
-            # print(" ".join(pred_sentence))
-        average_entropy = average_entropy / (rows * cols)
+        # probs = model.get_normalized_probs(net_output, log_probs=False)
+        # average_entropy = 0.
+        # rows, cols = my_target.size()
+        # refs_list = []
+        # preds_list = []
+        # for i in range(rows):
+        #     ref_sentence = []
+        #     pred_sentence = []
+        #     for j in range(cols):
+        #         ref_word = model.decoder.dictionary.__getitem__(my_target[i, j].cpu().detach().numpy())
+        #         pred_word = model.decoder.dictionary.__getitem__(probs[i, j].argmax().cpu().detach().numpy())
+        #         prob_entropy = Categorical(probs[i, j, :]).entropy().cpu().detach().numpy()
+        #         if my_target[i, j] != model.decoder.dictionary.pad_index:
+        #             average_entropy += prob_entropy
+        #             ref_sentence.append(ref_word)
+        #             pred_sentence.append(pred_word)
+        #     refs_list.append(" ".join(ref_sentence))
+        #     preds_list.append(" ".join(pred_sentence))
+        #     # print(" ".join(ref_sentence))
+        #     # print(" ".join(pred_sentence))
+        # average_entropy = average_entropy / (rows * cols)
 
 
         # Calculate F-BERT
-        results = score(preds_list, refs_list, model_type='bert-base-uncased', device='cuda:0', verbose=False)
-        f1_avg_results = np.average(results[2].detach().cpu().numpy())
+        # results = score(preds_list, refs_list, model_type='bert-base-uncased', device='cuda:0', verbose=False)
+        # f1_avg_results = np.average(results[2].detach().cpu().numpy())
         # print(f1_avg_results)
 
         # Calculate accuracy
@@ -130,8 +130,8 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         print_acc = (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100
         print_nll_loss = nll_loss.detach().cpu().numpy() / total_num.detach().cpu().numpy()
 
-        self.loss_stats_file.write(str(average_entropy) + '\t' + str(print_acc) + '\t' + str(print_nll_loss) + '\t'
-                                   + str(f1_avg_results) + '\n')
+        # self.loss_stats_file.write(str(average_entropy) + '\t' + str(print_acc) + '\t' + str(print_nll_loss) + '\t'
+        #                            + str(f1_avg_results) + '\n')
 
         return loss, nll_loss, num_correct, total_num
 

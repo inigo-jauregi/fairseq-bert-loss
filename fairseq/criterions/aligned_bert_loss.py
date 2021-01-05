@@ -41,10 +41,12 @@ def aligned_bert_loss(lprobs, target, epsilon, ignore_index=None, reduce=True):
 @register_criterion('aligned_bert_loss')
 class AlignedBertLossCriterion(FairseqCriterion):
 
-    def __init__(self, task, bert_model, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax):
+    def __init__(self, task, bert_model, marginalization, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax):
         super().__init__(task)
 
         self.bert_model = bert_model
+
+        self.marginalization = marginalization
 
         self.bert_scorer = BERTScorer(self.bert_model)  # , device='cpu')
         self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
@@ -55,8 +57,8 @@ class AlignedBertLossCriterion(FairseqCriterion):
         self.eps_gumbel_softmax = eps_gumbel_softmax
 
         # Cosine loss
-        self.cos_loss = CosineEmbeddingLoss()
-        self.cos_sim = CosineSimilarity(dim=1)
+        self.cos_loss = CosineEmbeddingLoss(reduction='sum')
+        # self.cos_sim = CosineSimilarity(dim=1)
 
         # File
         self.loss_stats_file = open('stats_aligned_bert_raw.txt', 'w')
@@ -68,6 +70,8 @@ class AlignedBertLossCriterion(FairseqCriterion):
         # fmt: off
         parser.add_argument('--bert-model', default='bert-base-uncased', type=str, metavar='D',
                             help='pretrained BERT model to calculate BERT loss')
+        parser.add_argument('--marginalization', default='raw', type=str, metavar='D',
+                            help='Embedding marginalization method.')
         parser.add_argument('--tau-gumbel-softmax', default=1.0, type=float,
                             help='Hyper-parameter tau in Gumbel-Softmax')
         parser.add_argument('--hard-gumbel-softmax', action="store_true",
@@ -117,7 +121,7 @@ class AlignedBertLossCriterion(FairseqCriterion):
         lprobs = model.get_normalized_probs(net_output, log_probs=True)
         # gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
         # print(lprobs.size())
-        gsm_samples = self.sparsemax(lprobs, 2)
+        # gsm_samples = self.sparsemax(lprobs, 2)
         # print(gsm_samples.size())
 
         # torch.manual_seed(1)  # Seed only seems to affect here
@@ -129,6 +133,13 @@ class AlignedBertLossCriterion(FairseqCriterion):
         # print(self.tau_gumbel_softmax)
         # print(self.hard_gumbel_softmax)
         # print(self.eps_gumbel_softmax)
+        if self.marginalization == 'raw':
+            gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
+        elif self.marginalization == 'sparsemax':
+            gsm_samples = self.sparsemax(lprobs, 2)
+        elif self.marginalization == 'gumbel-softmax':
+            gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
+                                         eps=self.eps_gumbel_softmax, dim=-1)
         # gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
         #                              eps=self.eps_gumbel_softmax, dim=-1)
         # gsm_samples_2 = gumbel_softmax(lprobs, tau=1, hard=False, eps=1e-10, dim=-1)
@@ -230,7 +241,7 @@ class AlignedBertLossCriterion(FairseqCriterion):
         n_correct = sum(log.get('n_correct', 0) for log in logging_outputs)
         total_n = sum(log.get('total_n', 0) for log in logging_outputs)
 
-        metrics.log_scalar('loss', loss_sum / n_sentences, n_sentences, round=3)
+        metrics.log_scalar('loss', loss_sum / total_n, total_n, round=3)
         metrics.log_scalar('accuracy', float(n_correct) / float(total_n), total_n, round=3)
         # metrics.log_derived('ppl', lambda meters: utils.get_perplexity(meters['loss'].avg))
 

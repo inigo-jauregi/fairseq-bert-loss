@@ -1,7 +1,7 @@
 # Data
-dataset = 'de-en_TEDtalks'
+dataset = 'de-en_IWSLT2014/data'
 type = 'train'
-prefix = 'train.tags.en-de'
+prefix = 'train.tags.de-en'
 src = 'de'
 tgt = 'en'
 

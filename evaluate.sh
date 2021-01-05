@@ -1,7 +1,8 @@
-DATASET_FOLDER=datasets/de-en_TEDtalks
-REF=test/tst2014_tst2015.tok.clean.lwc.bpe.en
-MODEL=models/BAS_ALIGNED_BERT_RAW_FT/checkpoints
-EPOCH=_best.test
+DATASET_FOLDER=datasets/de-en_IWSLT2014/data
+PREP_TEST=good
+REF=test/edunov_test.tok.clean.lwc.bpe.en
+MODEL=models/MIXED_NLL_BERT_GUMBEL_TAU_HARD_CONVERGENCE/checkpoints
+EPOCH=_best.$PREP_TEST
 
 # Obtain predictions
 grep ^H $DATASET_FOLDER/$MODEL/output$EPOCH.txt | cut -f3 > $DATASET_FOLDER/$MODEL/hypothesis$EPOCH.txt
