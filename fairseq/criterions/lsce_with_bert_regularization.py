@@ -42,14 +42,14 @@ def label_smoothed_nll_loss(lprobs, target, epsilon, ignore_index=None, reduce=T
 class MixedNLLBertLossCriterion(FairseqCriterion):
 
     def __init__(self, task, bert_model, marginalization, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax,
-                 label_smoothing):
+                 label_smoothing, soft_bert_score):
         super().__init__(task)
 
         self.bert_model = bert_model
 
         self.marginalization = marginalization
 
-        self.bert_scorer = BERTScorer(self.bert_model)  # , device='cpu')
+        self.bert_scorer = BERTScorer(self.bert_model, soft_bert_score=soft_bert_score)  # , device='cpu')
         self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
 
         # Gumbel-Softmax hyperparameters
@@ -83,6 +83,8 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
         parser.add_argument('--label-smoothing', default=0., type=float, metavar='D',
                             help='epsilon for label smoothing, 0 means no label smoothing')
+        parser.add_argument('--soft-bert-score', action="store_true",
+                            help='Whether we compute a soft BERT score or a hard bert-score')
         # parser.add_argument("--bos", default="<s>", type=str,
         #                     help="Specify bos token from the dictionary.")
         # parser.add_argument("--pad", default="<pad>", type=str,
@@ -193,7 +195,7 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
             lprobs_nll, target_nll, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         )
 
-        # f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
+        f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
         target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
         pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask)
         target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])

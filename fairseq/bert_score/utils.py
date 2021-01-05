@@ -522,7 +522,8 @@ def cache_scibert(model_type, cache_folder="~/.cache/torch/transformers"):
 
 
 def compute_loss(
-    model, emb_matrix, refs, preds, pad_token_id, verbose=False, batch_size=64, device="cuda:0", all_layers=False
+    model, emb_matrix, refs, preds, pad_token_id, verbose=False, batch_size=64, device="cuda:0", all_layers=False,
+        soft_bert_score=False
 ):
     """
     Compute BERTScore.
@@ -593,7 +594,8 @@ def compute_loss(
     # ref_stats = pad_batch_stats(batch_refs, stats_dict, device)
     # hyp_stats = pad_batch_stats(batch_hyps, stats_dict, device)
 
-    prec, rec, f1 = custom_greedy_cos(ref_bert_embs, masks, pred_bert_embs, masks, all_layers)
+    prec, rec, f1 = custom_greedy_cos(ref_bert_embs, masks, pred_bert_embs, masks, all_layers,
+                                      soft_bert_score=soft_bert_score)
     # preds.append(torch.stack((P, R, F1), dim=-1).cpu())
     # preds = torch.cat(preds, dim=1 if all_layers else 0)
 
@@ -640,7 +642,7 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
     return preds_bert_embedding, refs_bert_embedding, mask
 
 
-def custom_greedy_cos(ref_embedding, ref_masks, hyp_embedding, hyp_masks, all_layers=False):
+def custom_greedy_cos(ref_embedding, ref_masks, hyp_embedding, hyp_masks, all_layers=False, soft_bert_score=False):
     """
     Compute greedy matching based on cosine similarity.
 
@@ -678,8 +680,16 @@ def custom_greedy_cos(ref_embedding, ref_masks, hyp_embedding, hyp_masks, all_la
     masks = masks.float().to(sim.device)
     sim = sim * masks
 
-    word_precision = sim.max(dim=2)[0]
-    word_recall = sim.max(dim=1)[0]
+    if soft_bert_score:
+        precision_weigths = sim.softmax(dim=2)
+        recall_weigths = sim.softmax(dim=1)
+        weighted_sim_precision = sim * precision_weigths
+        weighted_sim_recall = sim * recall_weigths
+        word_precision = weighted_sim_precision.sum(dim=2)
+        word_recall = weighted_sim_recall.sum(dim=1)
+    else:
+        word_precision = sim.max(dim=2)[0]
+        word_recall = sim.max(dim=1)[0]
 
     # hyp_idf.div_(hyp_idf.sum(dim=1, keepdim=True))
     # ref_idf.div_(ref_idf.sum(dim=1, keepdim=True))

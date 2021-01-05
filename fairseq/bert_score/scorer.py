@@ -44,6 +44,7 @@ class BERTScorer:
             lang=None,
             rescale_with_baseline=False,
             baseline_path=None,
+            soft_bert_score=None
     ):
         """
         Args:
@@ -115,6 +116,7 @@ class BERTScorer:
         # print(self._emb_matrix.size())
         self._model.to(self.device)
         self._emb_matrix.to(self.device)
+        self.soft_bert_score = soft_bert_score
 
         self._idf_dict = None
         if idf_sents is not None:
@@ -305,6 +307,7 @@ class BERTScorer:
             device=self.device,
             batch_size=batch_size,
             all_layers=self.all_layers,
+            soft_bert_score=self.soft_bert_score
         )  # .cpu()
 
         # if ref_group_boundaries is not None:

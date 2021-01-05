@@ -41,14 +41,15 @@ def aligned_bert_loss(lprobs, target, epsilon, ignore_index=None, reduce=True):
 @register_criterion('aligned_bert_loss')
 class AlignedBertLossCriterion(FairseqCriterion):
 
-    def __init__(self, task, bert_model, marginalization, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax):
+    def __init__(self, task, bert_model, marginalization, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax,
+                 soft_bert_score):
         super().__init__(task)
 
         self.bert_model = bert_model
 
         self.marginalization = marginalization
 
-        self.bert_scorer = BERTScorer(self.bert_model)  # , device='cpu')
+        self.bert_scorer = BERTScorer(self.bert_model, soft_bert_score=soft_bert_score)  # , device='cpu')
         self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
 
         # Gumbel-Softmax hyperparameters
@@ -78,6 +79,8 @@ class AlignedBertLossCriterion(FairseqCriterion):
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
         parser.add_argument('--eps-gumbel-softmax', default=1e-10, type=float,
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
+        parser.add_argument('--soft-bert-score', action="store_true",
+                            help='Whether we compute a soft BERT score or a hard bert-score')
         # parser.add_argument("--bos", default="<s>", type=str,
         #                     help="Specify bos token from the dictionary.")
         # parser.add_argument("--pad", default="<pad>", type=str,

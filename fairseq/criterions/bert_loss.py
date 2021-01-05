@@ -39,12 +39,15 @@ def bert_loss(lprobs, target, epsilon, ignore_index=None, reduce=True):
 @register_criterion('bert_loss')
 class BertLossCriterion(FairseqCriterion):
 
-    def __init__(self, task, bert_model, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax):
+    def __init__(self, task, bert_model, marginalization, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax,
+                 soft_bert_score):
         super().__init__(task)
 
         self.bert_model = bert_model
 
-        self.bert_scorer = BERTScorer(self.bert_model)  # , device='cpu')
+        self.marginalization = marginalization
+
+        self.bert_scorer = BERTScorer(self.bert_model, soft_bert_score=soft_bert_score)  # , device='cpu')
         self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
 
         # Gumbel-Softmax hyperparameters
@@ -62,12 +65,16 @@ class BertLossCriterion(FairseqCriterion):
         # fmt: off
         parser.add_argument('--bert-model', default='bert-base-uncased', type=str, metavar='D',
                             help='pretrained BERT model to calculate BERT loss')
+        parser.add_argument('--marginalization', default='raw', type=str, metavar='D',
+                            help='Embedding marginalization method.')
         parser.add_argument('--tau-gumbel-softmax', default=1.0, type=float,
                             help='Hyper-parameter tau in Gumbel-Softmax')
         parser.add_argument('--hard-gumbel-softmax', action="store_true",
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
         parser.add_argument('--eps-gumbel-softmax', default=1e-10, type=float,
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
+        parser.add_argument('--soft-bert-score', action="store_true",
+                            help='Whether we compute a soft BERT score or a hard bert-score')
         # parser.add_argument("--bos", default="<s>", type=str,
         #                     help="Specify bos token from the dictionary.")
         # parser.add_argument("--pad", default="<pad>", type=str,
@@ -110,12 +117,10 @@ class BertLossCriterion(FairseqCriterion):
 
     def compute_loss(self, model, net_output, sample, reduce=True):
         lprobs = model.get_normalized_probs(net_output, log_probs=True)
-        gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
+        # gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
         # print(lprobs.size())
         # gsm_samples = self.sparsemax(lprobs,2)
         # print(gsm_samples.size())
-
-
         # torch.manual_seed(1)  # Seed only seems to affect here
         # print(lprobs.size())
         # print(lprobs[0, 0, :].max())
@@ -125,8 +130,13 @@ class BertLossCriterion(FairseqCriterion):
         # print(self.tau_gumbel_softmax)
         # print(self.hard_gumbel_softmax)
         # print(self.eps_gumbel_softmax)
-        gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
-                                     eps=self.eps_gumbel_softmax, dim=-1)
+        if self.marginalization == 'raw':
+            gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
+        elif self.marginalization == 'sparsemax':
+            gsm_samples = self.sparsemax(lprobs, 2)
+        elif self.marginalization == 'gumbel-softmax':
+            gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
+                                         eps=self.eps_gumbel_softmax, dim=-1)
         # gsm_samples_2 = gumbel_softmax(lprobs, tau=1, hard=False, eps=1e-10, dim=-1)
         # print(gsm_samples.size())
         # print(gsm_samples[0, 0, :].max())
