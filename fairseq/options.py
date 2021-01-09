@@ -251,6 +251,8 @@ def get_parser(desc, default_task="translation"):
                         help="Specify bos token from the dictionary.")
     parser.add_argument("--tgtdict_add_sentence_limit_words_after", action="store_true",
                         help="Add sentence limit words (i.e. bos, eos, pad, unk) after loading tgtdict.")
+    parser.add_argument("--rewe", action="store_true",
+                        help="Regressing Word Embeddings Regularization")
 
     from fairseq.registry import REGISTRIES
     for registry_name, REGISTRY in REGISTRIES.items():

@@ -633,6 +633,23 @@ class TransformerDecoder(FairseqIncrementalDecoder):
                 self.output_projection.weight, mean=0, std=self.output_embed_dim ** -0.5
             )
 
+        self.rewe = None
+        if args.rewe:
+            self.rewe = True
+            self.rewe_layer_1 = nn.Linear(
+                self.output_embed_dim, self.output_embed_dim, bias=False
+            )
+            nn.init.normal_(
+                self.rewe_layer_1.weight, mean=0, std=self.output_embed_dim ** -0.5
+            )
+            self.rewe_relu = nn.ReLU()
+            self.rewe_layer_2 = nn.Linear(
+                self.output_embed_dim, 768, bias=False
+            )
+            nn.init.normal_(
+                self.rewe_layer_2.weight, mean=0, std=self.output_embed_dim ** -0.5
+            )
+
     def build_decoder_layer(self, args, no_encoder_attn=False):
         return TransformerDecoderLayer(args, no_encoder_attn)
 
@@ -670,9 +687,15 @@ class TransformerDecoder(FairseqIncrementalDecoder):
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
         )
+        if self.rewe:
+            regressed_embedding = self.rewe_layer_2(self.rewe_relu(self.rewe_layer_1(x)))
         if not features_only:
             x = self.output_layer(x)
-        return x, extra
+
+        if self.rewe:
+            return x, extra, regressed_embedding
+        else:
+            return x, extra
 
     def extract_features(
         self,

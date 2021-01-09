@@ -254,7 +254,7 @@ class BERTScorer:
         return out
 
     def bert_loss_calculation(self, preds, refs, verbose=False, batch_size=64,
-                              return_hash=False, out_type='f1', pad_token_id=None):
+                              return_hash=False, out_type='f1', pad_token_id=None, rewe=None):
         """
         Args:
             - :param: `preds` (torch.tensor BxTxE): predicted logits
@@ -307,7 +307,8 @@ class BERTScorer:
             device=self.device,
             batch_size=batch_size,
             all_layers=self.all_layers,
-            soft_bert_score=self.soft_bert_score
+            soft_bert_score=self.soft_bert_score,
+            rewe=rewe
         )  # .cpu()
 
         # if ref_group_boundaries is not None:

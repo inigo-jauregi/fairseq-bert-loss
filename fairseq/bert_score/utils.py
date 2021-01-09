@@ -523,7 +523,7 @@ def cache_scibert(model_type, cache_folder="~/.cache/torch/transformers"):
 
 def compute_loss(
     model, emb_matrix, refs, preds, pad_token_id, verbose=False, batch_size=64, device="cuda:0", all_layers=False,
-        soft_bert_score=False
+        soft_bert_score=False, rewe=None
 ):
     """
     Compute BERTScore.
@@ -552,7 +552,7 @@ def compute_loss(
     # for batch_start in iter_range:
     #     sen_batch = sentences[batch_start : batch_start + batch_size]
     pred_bert_embs, ref_bert_embs, masks = get_bert_embedding_from_tensors(
-        preds, refs, model, emb_matrix, pad_token_id, device=device, all_layers=all_layers)
+        preds, refs, model, emb_matrix, pad_token_id, device=device, all_layers=all_layers, rewe=rewe)
 
     # embs = embs.cpu()
     # masks = masks.cpu()
@@ -604,7 +604,7 @@ def compute_loss(
 
 def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix, pad_token_id,
                                     batch_size=-1, device="cuda:0",
-                                    all_layers=False):
+                                    all_layers=False, rewe=None):
     """
     Compute BERT embedding in batches.
 
@@ -621,8 +621,11 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
     # TODO: Calculate prob*Embs matrix
     batch_size, max_seq_len, vocab_size = preds_tensor.size()
     emb_size = emb_matrix.size()[-1]
-    preds_tensor_embs = torch.mm(preds_tensor.contiguous().view(-1, vocab_size), emb_matrix)
-    preds_tensor_embs = preds_tensor_embs.view(-1, max_seq_len, emb_size)
+    if rewe:
+        preds_tensor_embs = preds_tensor
+    else:
+        preds_tensor_embs = torch.mm(preds_tensor.contiguous().view(-1, vocab_size), emb_matrix)
+        preds_tensor_embs = preds_tensor_embs.view(-1, max_seq_len, emb_size)
     # preds_tensor_embs = torch.dot(preds_tensor, emb_matrix)
     # print(preds_tensor_embs.size())
 

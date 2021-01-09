@@ -148,7 +148,11 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
         # print(self.tau_gumbel_softmax)
         # print(self.hard_gumbel_softmax)
         # print(self.eps_gumbel_softmax)
-        if self.marginalization == 'raw':
+        rewe = None
+        if len(net_output) == 3:
+            gsm_samples = net_output[2]
+            rewe = True
+        elif self.marginalization == 'raw':
             gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
         elif self.marginalization == 'sparsemax':
             gsm_samples = self.sparsemax(lprobs, 2)
@@ -199,10 +203,10 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
             lprobs_nll, target_nll, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         )
 
-        f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
+        f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id, rewe=rewe)
         cos_loss = - f_bert
         # target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
-        # pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask)
+        # pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask, rewe=rewe)
         # target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])
         # pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
         # cos_loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
