@@ -42,7 +42,7 @@ def label_smoothed_nll_loss(lprobs, target, epsilon, ignore_index=None, reduce=T
 class MixedNLLBertLossCriterion(FairseqCriterion):
 
     def __init__(self, task, bert_model, marginalization, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax,
-                 label_smoothing, soft_bert_score):
+                 label_smoothing, soft_bert_score, mixed_proportion):
         super().__init__(task)
 
         self.bert_model = bert_model
@@ -62,6 +62,8 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
 
         # Cosine loss
         self.cos_loss = CosineEmbeddingLoss(reduction='sum')
+
+        self._lambda = torch.tensor(mixed_proportion).to(self.bert_scorer.device)
 
         # File
         self.loss_stats_file = open('stats_mixed_nll_bert_sparsemax.txt', 'w')
@@ -85,6 +87,8 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
                             help='epsilon for label smoothing, 0 means no label smoothing')
         parser.add_argument('--soft-bert-score', action="store_true",
                             help='Whether we compute a soft BERT score or a hard bert-score')
+        parser.add_argument('--mixed-proportion', default=0.5, type=float, metavar='D',
+                            help='Value')
         # parser.add_argument("--bos", default="<s>", type=str,
         #                     help="Specify bos token from the dictionary.")
         # parser.add_argument("--pad", default="<pad>", type=str,
@@ -196,17 +200,18 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
         )
 
         f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
-        target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
-        pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask)
-        target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])
-        pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
-        cos_loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
-                             torch.tensor(1.0).to(self.bert_scorer.device))
+        cos_loss = - f_bert
+        # target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
+        # pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask)
+        # target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])
+        # pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
+        # cos_loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
+        #                      torch.tensor(1.0).to(self.bert_scorer.device))
         # print(f_bert / rows)
 
         # loss = -torch.log(f_bert)
         # print (nll_loss, ' + ', cos_loss, ' = ', loss)
-        loss = nll_loss + cos_loss
+        loss = (torch.tensor(1.0).to(self.bert_scorer.device) - self._lambda)*nll_loss + self._lambda*cos_loss
 
         # Calculate F-BERT
         # results = score(preds_list, refs_list, model_type='bert-base-uncased', device='cuda:0', verbose=False)
@@ -229,7 +234,7 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
         # print('Accuracy: ', (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100, '%')
         # print('F-Bert: ', (f_bert/batch_size).detach().cpu().numpy())
         print_acc = (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100
-        print_f1 = (cos_loss/target_contextual_embs_v.size()[0]).detach().cpu().numpy()
+        print_f1 = (cos_loss/batch_size).detach().cpu().numpy()
         self.loss_stats_file.write(str(print_acc) + '\t' + str(print_f1) + '\t' +
                                    str(loss.detach().cpu().numpy()) + '\n')
 

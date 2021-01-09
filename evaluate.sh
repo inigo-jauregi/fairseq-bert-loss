@@ -1,7 +1,7 @@
 DATASET_FOLDER=datasets/de-en_IWSLT2014/data
 PREP_TEST=good
 REF=test/edunov_test.tok.clean.lwc.bpe.en
-MODEL=models/MIXED_NLL_BERT_GUMBEL_TAU_HARD_CONVERGENCE/checkpoints
+MODEL=models/MIXED_0.3_NLL_BERT_GUMBEL_TAU_0.1_SOFT_BERT_SCORE_CONVERGENCE/checkpoints
 EPOCH=_best.$PREP_TEST
 
 # Obtain predictions
