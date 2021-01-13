@@ -203,14 +203,14 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
             lprobs_nll, target_nll, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         )
 
-        f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id, rewe=rewe)
-        cos_loss = - f_bert
-        # target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
-        # pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask, rewe=rewe)
-        # target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])
-        # pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
-        # cos_loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
-        #                      torch.tensor(1.0).to(self.bert_scorer.device))
+        # f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id, rewe=rewe)
+        # cos_loss = - f_bert
+        target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
+        pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask, rewe=rewe)
+        target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])
+        pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
+        cos_loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
+                             torch.tensor(1.0).to(self.bert_scorer.device))
         # print(f_bert / rows)
 
         # loss = -torch.log(f_bert)
@@ -331,13 +331,16 @@ class MixedNLLBertLossCriterion(FairseqCriterion):
 
         return target_bert_embeddings, mask
 
-    def pred_contextual_embs(self, preds_tensor, mask, all_layers=False):
+    def pred_contextual_embs(self, preds_tensor, mask, all_layers=False, rewe=None):
 
         batch_size, max_seq_len, vocab_size = preds_tensor.size()
         emb_size = self.bert_scorer._emb_matrix.size()[-1]
-        preds_tensor_embs = torch.mm(preds_tensor.contiguous().view(-1, vocab_size),
-                                     self.bert_scorer._emb_matrix)
-        preds_tensor_embs = preds_tensor_embs.view(-1, max_seq_len, emb_size)
+        if rewe:
+            preds_tensor_embs = preds_tensor
+        else:
+            preds_tensor_embs = torch.mm(preds_tensor.contiguous().view(-1, vocab_size),
+                                         self.bert_scorer._emb_matrix)
+            preds_tensor_embs = preds_tensor_embs.view(-1, max_seq_len, emb_size)
 
         preds_bert_embedding = custom_bert_encode(
             self.bert_scorer._model, preds_tensor_embs, attention_mask=mask,

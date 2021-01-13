@@ -5,7 +5,7 @@ for SEED_NUM in 2 3; do
   MODEL=models/BASELINE_TRANS_convergence_fairseq
   CUDA_VISIBLE_DEVICES=0 fairseq-train $DATASET_FOLDER/prep_files/preprocess_good \
                --lr 5e-4 -s de -t en --optimizer adam --max-tokens 4096 --clip-norm 0.0 --dropout 0.3 \
-               --arch transformer_iwslt_de_en --save-dir $DATASET_FOLDER/$MODEL/checkpoints \
+               --arch transformer_iwslt_de_en --save-dir $DATASET_FOLDER/$MODEL/seed_$SEED_NUM \
                --lr-scheduler inverse_sqrt --no-epoch-checkpoints --no-last-checkpoints \
                --warmup-updates 4000 --warmup-init-lr '1e-07' --min-lr '1e-09' \
                --adam-betas "(0.9, 0.98)" --weight-decay 0.0001 \

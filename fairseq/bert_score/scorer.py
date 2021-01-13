@@ -110,7 +110,7 @@ class BERTScorer:
                 emb_matrix = param
             param.requires_grad = False
         self._emb_matrix = emb_matrix
-        print('GRADIENT', self._emb_matrix.requires_grad)
+        # print('GRADIENT', self._emb_matrix.requires_grad)
         # self._emb_matrix.requires_grad = False
         # print(self._emb_matrix.requires_grad)
         # print(self._emb_matrix.size())

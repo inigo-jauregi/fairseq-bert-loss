@@ -42,12 +42,13 @@ def aligned_bert_loss(lprobs, target, epsilon, ignore_index=None, reduce=True):
 class AlignedBertLossCriterion(FairseqCriterion):
 
     def __init__(self, task, bert_model, marginalization, tau_gumbel_softmax, hard_gumbel_softmax, eps_gumbel_softmax,
-                 soft_bert_score):
+                 soft_bert_score, force_alignment):
         super().__init__(task)
 
         self.bert_model = bert_model
 
         self.marginalization = marginalization
+        self.force_alignment = force_alignment
 
         self.bert_scorer = BERTScorer(self.bert_model, soft_bert_score=soft_bert_score)  # , device='cpu')
         self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
@@ -80,6 +81,8 @@ class AlignedBertLossCriterion(FairseqCriterion):
         parser.add_argument('--eps-gumbel-softmax', default=1e-10, type=float,
                             help='Whether is a soft or hard sample (i.e. one-hot encoding)')
         parser.add_argument('--soft-bert-score', action="store_true",
+                            help='Whether we compute a soft BERT score or a hard bert-score')
+        parser.add_argument('--force-alignment', action="store_true",
                             help='Whether we compute a soft BERT score or a hard bert-score')
         # parser.add_argument("--bos", default="<s>", type=str,
         #                     help="Specify bos token from the dictionary.")
@@ -185,21 +188,25 @@ class AlignedBertLossCriterion(FairseqCriterion):
         # loss, nll_loss = label_smoothed_nll_loss(
         #     lprobs, target, self.eps, ignore_index=self.padding_idx, reduce=reduce,
         # )
-        # f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
-        # Calculate BERT contextual embeddings for target
-        target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
-        pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask)
-        # print(f_bert / rows)
-        # print(target_contextual_embs.size())
-        # print(pred_contextual_embs.size())
+        if not self.force_alignment:
+            f_bert = self.bert_scorer.bert_loss_calculation(gsm_samples, target, pad_token_id=self.pad_token_id)
+            loss = - f_bert
+        else:
+            # Calculate BERT contextual embeddings for target
+            # print('txistorri')
+            target_contextual_embs, mask = self.target_contextual_embs(target, self.bert_scorer.device)
+            pred_contextual_embs = self.pred_contextual_embs(gsm_samples, mask)
+            # print(f_bert / rows)
+            # print(target_contextual_embs.size())
+            # print(pred_contextual_embs.size())
 
-        # BERT Score
-        target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])
-        pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
-        # print(target_contextual_embs_v.size())
-        # print(pred_contextual_embs_v.size())
-        loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
-                             torch.tensor(1.0).to(self.bert_scorer.device))
+            # BERT Score
+            target_contextual_embs_v = target_contextual_embs.view(-1, target_contextual_embs.size()[-1])
+            pred_contextual_embs_v = pred_contextual_embs.view(-1, target_contextual_embs.size()[-1])
+            # print(target_contextual_embs_v.size())
+            # print(pred_contextual_embs_v.size())
+            loss = self.cos_loss(pred_contextual_embs_v, target_contextual_embs_v,
+                                 torch.tensor(1.0).to(self.bert_scorer.device))
         # loss = torch.log(loss)
         # sim = self.cos_sim(pred_contextual_embs_v, target_contextual_embs_v)
         # print('loss ', loss)
