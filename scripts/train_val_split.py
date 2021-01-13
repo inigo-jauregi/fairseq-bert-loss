@@ -1,10 +1,10 @@
 import random
 
 # Data
-dataset = 'de-en_IWSLT2014/data'
+dataset = 'eu-en_TEDtalks'
 type = 'train'
 prefix = 'train'
-src = 'de'
+src = 'eu'
 tgt = 'en'
 
 # Open files
@@ -24,12 +24,12 @@ for line in tgt_file:
 print(len(src_sen_lists))
 print(len(tgt_sen_lists))
 
-validation_ids = random.sample(range(len(src_sen_lists)), 7000)
+validation_ids = random.sample(range(len(src_sen_lists)), 400)
 
 new_train_src_file = open('../datasets/' + dataset + '/' + type + '/train_no_val.' + src, 'w')
 new_train_tgt_file = open('../datasets/' + dataset + '/' + type + '/train_no_val.' + tgt, 'w')
-dev_src_file = open('../datasets/' + dataset + '/dev/dev.' + src, 'w')
-dev_tgt_file = open('../datasets/' + dataset + '/dev/dev.' + tgt, 'w')
+dev_src_file = open('../datasets/' + dataset + '/train/dev.' + src, 'w')
+dev_tgt_file = open('../datasets/' + dataset + '/train/dev.' + tgt, 'w')
 
 for i in range(len(src_sen_lists)):
     if i in validation_ids:
@@ -43,4 +43,3 @@ new_train_src_file.close()
 new_train_tgt_file.close()
 dev_src_file.close()
 dev_tgt_file.close()
-

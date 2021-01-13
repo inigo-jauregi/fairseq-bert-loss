@@ -1,9 +1,9 @@
 # Data
-dataset = 'de-en_IWSLT2014/data'
-type = 'test'
-year = 'dev2012'
-prefix = 'IWSLT14.TEDX.' + year + '.de-en'
-src = 'de'
+dataset = 'zh-en_TEDtalks'
+type = 'dev'
+year = 'dev2010'
+prefix = 'IWSLT14.TED.' + year + '.zh-en'
+src = 'zh'
 tgt = 'en'
 
 # Open files
