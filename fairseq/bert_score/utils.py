@@ -33,6 +33,10 @@ lang2model.update(
 
 
 model2layers = {
+    "./pretrained-LMs/dbmdz/bert-base-german-uncased": 9,
+    "./pretrained-LMs/dbmdz/bert-base-turkish-uncased": 9,
+    "./pretrained-LMs/dccuchile/bert-base-spanish-wwm-uncased": 9,
+    "./pretrained-LMs/DeepPavlov/rubert-base-cased": 9,
     "bert-base-uncased": 9,  # 0.6925188074454226
     "bert-large-uncased": 18,  # 0.7210358126642836
     "bert-base-cased-finetuned-mrpc": 9,  # 0.6721947475618048

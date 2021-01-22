@@ -1,9 +1,9 @@
 # Data
-dataset = 'zh-en_TEDtalks'
+dataset = 'en-ru_TEDtalks'
 type = 'train'
-prefix = 'train.tags.zh-en'
-src = 'zh'
-tgt = 'en'
+prefix = 'train.tags.ru-en'
+src = 'en'
+tgt = 'ru'
 
 # Open files
 src_file = open('../datasets/' + dataset + '/' + type + '/' + prefix + '.' + src)

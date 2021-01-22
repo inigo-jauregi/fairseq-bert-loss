@@ -1,11 +1,11 @@
 # Data
-dataset = 'zh-en_TEDtalks'
+dataset = 'en-ru_TEDtalks'
 type = 'test'
 year_1 = 'tst2010'
 year_2 = 'tst2011'
 year_3 = 'tst2012'
-src = 'zh'
-tgt = 'en'
+src = 'en'
+tgt = 'ru'
 
 src_1 = open('../datasets/' + dataset + '/' + type + '/' + year_1 + '.' + src)
 src_1_list = []
@@ -40,8 +40,8 @@ print(len(joined_src))
 print(len(joined_tgt))
 assert len(joined_src) == len(joined_tgt), "Different number of sentences!"
 
-joined_src_write = open('../datasets/' + dataset + '/' + type + '/edunov_test.' + src, 'w')
-joined_tgt_write = open('../datasets/' + dataset + '/' + type + '/edunov_test.' + tgt, 'w')
+joined_src_write = open('../datasets/' + dataset + '/' + type + '/test.' + src, 'w')
+joined_tgt_write = open('../datasets/' + dataset + '/' + type + '/test.' + tgt, 'w')
 
 for i in range(len(joined_src)):
     joined_src_write.write(joined_src[i])

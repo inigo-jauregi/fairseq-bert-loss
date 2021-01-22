@@ -142,7 +142,7 @@ class AlignedBertLossCriterion(FairseqCriterion):
         if self.marginalization == 'raw':
             gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
         elif self.marginalization == 'sparsemax':
-            gsm_samples = self.sparsemax(lprobs, 2)
+            gsm_samples = self.sparsemax(net_output[0], 2)
         elif self.marginalization == 'gumbel-softmax':
             gsm_samples = gumbel_softmax(lprobs, tau=self.tau_gumbel_softmax, hard=self.hard_gumbel_softmax,
                                          eps=self.eps_gumbel_softmax, dim=-1)

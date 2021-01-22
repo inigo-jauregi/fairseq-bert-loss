@@ -8,7 +8,7 @@ LC=$SCRIPTS/tokenizer/lowercase.perl
 CLEAN=$SCRIPTS/training/clean-corpus-n.perl
 BPEROOT=../subword-nmt/subword_nmt
 BPE_TOKENS=32000
-BERT_MODEL=pretrained-LMs/dkleczek/bert-base-polish-uncased-v1
+BERT_MODEL=pretrained-LMs/dccuchile/bert-base-spanish-wwm-uncased
 
 if [ ! -d "$SCRIPTS" ]; then
     echo "Please set SCRIPTS variable correctly to point to Moses scripts."
@@ -16,9 +16,9 @@ if [ ! -d "$SCRIPTS" ]; then
 fi
 
 src=en
-tgt=pl
-dataset=datasets/pl-en_TEDtalks
-dataset_out=datasets/en-pl_TEDtalks
+tgt=es
+dataset=datasets/es-en_TEDtalks
+dataset_out=datasets/en-es_TEDtalks
 train=train
 dev=dev2010
 test=test
@@ -38,13 +38,15 @@ for l in $tgt; do
     f=$train.$l
     tok=$train.tok
 
-    cat $dataset/train/$f | \
-    perl $TOKENIZER -threads 8 -l $l > $dataset_out/train/$tok.$l
+    #cat $dataset/train/$f | \
+    #perl $TOKENIZER -threads 8 -l $l > $dataset_out/train/$tok.$l
     #cp $dataset/train/$f $dataset_out/train/$tok.$l
+    python scripts/bert_tokenize.py $BERT_MODEL $dataset/train/$f $dataset_out/train/$tok.$l
     #python -m jieba -d ' ' < $dataset/train/$f > $dataset_out/train/$tok.$l
     echo ""
 done
 perl $CLEAN -ratio 1.5 $dataset_out/train/$tok $src $tgt $dataset_out/train/$tok.clean 1 175
+
 for l in $src $tgt; do
     perl $LC < $dataset_out/train/$tok.clean.$l > $dataset_out/train/$tok.clean.lwc.$l
 done
@@ -63,8 +65,9 @@ for l in $tgt; do
     f=$dev.$l
     tok=$dev.tok
 
-    cat $dataset/dev/$f | \
-    perl $TOKENIZER -threads 8 -l $l > $dataset_out/dev/$tok.$l
+    #cat $dataset/dev/$f | \
+    #perl $TOKENIZER -threads 8 -l $l > $dataset_out/dev/$tok.$l
+    python scripts/bert_tokenize.py $BERT_MODEL $dataset/dev/$f $dataset_out/dev/$tok.$l
     #cp $dataset/dev/$f $dataset_out/dev/$tok.$l
     #python -m jieba -d ' ' < $dataset/dev/$f > $dataset_out/dev/$tok.$l
     echo ""
@@ -88,9 +91,10 @@ for l in $tgt; do
     f=$test.$l
     tok=$test.tok
 
-    cat $dataset/test/$f | \
-    perl $TOKENIZER -threads 8 -l $l > $dataset_out/test/$tok.$l
+    #cat $dataset/test/$f | \
+    #perl $TOKENIZER -threads 8 -l $l > $dataset_out/test/$tok.$l
     #cp $dataset/test/$f $dataset_out/test/$tok.$l
+    python scripts/bert_tokenize.py $BERT_MODEL $dataset/test/$f $dataset_out/test/$tok.$l
     #python -m jieba -d ' ' < $dataset/test/$f > $dataset_out/test/$tok.$l
     echo ""
 done
@@ -132,11 +136,20 @@ for L in $src; do
     python $BPEROOT/apply_bpe.py -c $BPE_CODE < $dataset_out/test/$test.tok.clean.lwc.$L > $dataset_out/test/$test.tok.clean.lwc.bpe.$L
 done
 
+#for L in $tgt; do
+#    echo "Apply BERT tokenization to train ${L}..."
+#    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/train/$train.tok.clean.lwc.$L $dataset_out/train/$train.tok.clean.lwc.bpe.$L
+#    echo "Apply BERT tokenization to dev ${L}..."
+#    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/dev/$dev.tok.clean.lwc.$L $dataset_out/dev/$dev.tok.clean.lwc.bpe.$L
+#    echo "Apply BERT tokenization to test ${L}..."
+#    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/test/$test.tok.clean.lwc.$L $dataset_out/test/$test.tok.clean.lwc.bpe.$L
+#done
+
 for L in $tgt; do
-    echo "Apply BERT tokenization to train ${L}..."
-    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/train/$train.tok.clean.lwc.$L $dataset_out/train/$train.tok.clean.lwc.bpe.$L
-    echo "Apply BERT tokenization to dev ${L}..."
-    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/dev/$dev.tok.clean.lwc.$L $dataset_out/dev/$dev.tok.clean.lwc.bpe.$L
-    echo "Apply BERT tokenization to test ${L}..."
-    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/test/$test.tok.clean.lwc.$L $dataset_out/test/$test.tok.clean.lwc.bpe.$L
+    #echo "Apply BERT tokenization to train ${L}..."
+    cp $dataset_out/train/$train.tok.clean.lwc.$L $dataset_out/train/$train.tok.clean.lwc.bpe.$L
+    #echo "Apply BERT tokenization to dev ${L}..."
+    cp $dataset_out/dev/$dev.tok.clean.lwc.$L $dataset_out/dev/$dev.tok.clean.lwc.bpe.$L
+    #echo "Apply BERT tokenization to test ${L}..."
+    cp $dataset_out/test/$test.tok.clean.lwc.$L $dataset_out/test/$test.tok.clean.lwc.bpe.$L
 done

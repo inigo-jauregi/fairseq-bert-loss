@@ -1,7 +1,7 @@
 import os
 from transformers import AutoConfig, AutoTokenizer, AutoModel
 
-bert_model_name = "dbmdz/bert-base-german-uncased"
+bert_model_name = "DeepPavlov/rubert-base-cased"
 if os.path.isdir('../pretrained-LMs/'+bert_model_name):
     os.mkdir('../pretrained-LMs/'+bert_model_name)
 

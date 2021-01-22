@@ -1,10 +1,10 @@
 # Data
-dataset = 'zh-en_TEDtalks'
-type = 'dev'
-year = 'dev2010'
-prefix = 'IWSLT14.TED.' + year + '.zh-en'
-src = 'zh'
-tgt = 'en'
+dataset = 'en-ru_TEDtalks'
+type = 'test'
+year = 'tst2012'
+prefix = 'IWSLT14.TED.' + year + '.ru-en'
+src = 'en'
+tgt = 'ru'
 
 # Open files
 src_file = open('../datasets/' + dataset + '/' + type + '/' + prefix + '.' + src + '.xml')

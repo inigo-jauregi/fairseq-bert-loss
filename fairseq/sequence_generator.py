@@ -293,11 +293,11 @@ class SequenceGenerator(nn.Module):
                 self.temperature,
             )
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
-            print('1: ', torch.max(lprobs[0,:]))
-            print('2: ', torch.max(lprobs[1, :]))
-            print('3: ', torch.max(lprobs[2, :]))
-            print('4: ', torch.max(lprobs[3, :]))
-            print('5: ', torch.max(lprobs[4, :]))
+            # print('1: ', torch.max(lprobs[0,:]))
+            # print('2: ', torch.max(lprobs[1, :]))
+            # print('3: ', torch.max(lprobs[2, :]))
+            # print('4: ', torch.max(lprobs[3, :]))
+            # print('5: ', torch.max(lprobs[4, :]))
 
             lprobs[:, self.pad] = -math.inf  # never select pad
             lprobs[:, self.unk] -= self.unk_penalty  # apply unk penalty
