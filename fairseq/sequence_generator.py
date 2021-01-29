@@ -95,8 +95,8 @@ class SequenceGenerator(nn.Module):
 
         self.model.eval()
 
-        self.loss_stats_file = open('../datasets/de-en_TEDtalks/models/'
-                                    'inference_entropy_distribution.txt', 'w')
+        # self.loss_stats_file = open('../datasets/de-en_TEDtalks/models/'
+        #                             'inference_entropy_distribution.txt', 'w')
 
 
     def cuda(self):
@@ -298,9 +298,9 @@ class SequenceGenerator(nn.Module):
                 self.temperature,
             )
             # print(probs.size())
-            prob_entropy = Categorical(probs).entropy().cpu().detach().numpy()[0]
+            # prob_entropy = Categorical(probs).entropy().cpu().detach().numpy()[0]
             # print(prob_entropy)
-            self.loss_stats_file.write(str(prob_entropy)+'\n')
+            # self.loss_stats_file.write(str(prob_entropy)+'\n')
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
             # print('1: ', torch.max(lprobs[0,:]))
             # print('2: ', torch.max(lprobs[1, :]))
