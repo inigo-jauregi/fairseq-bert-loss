@@ -63,8 +63,9 @@ class AlignedBertLossCriterion(FairseqCriterion):
         # self.cos_sim = CosineSimilarity(dim=1)
 
         # File
-        self.loss_stats_file = open('stats_aligned_bert_raw.txt', 'w')
-        self.loss_stats_file.write('accuracy\tBERT_loss\n')
+        self.loss_stats_file = open('datasets/de-en_IWSLT2014/data/models/'
+                                    'stats_aligned_bert_'+self.marginalization+'.txt', 'w')
+        self.loss_stats_file.write('entropy\tBERT_loss\n')
 
     @staticmethod
     def add_args(parser):
@@ -124,7 +125,7 @@ class AlignedBertLossCriterion(FairseqCriterion):
         return loss, sample_size, logging_output
 
     def compute_loss(self, model, net_output, sample, reduce=True):
-        lprobs = model.get_normalized_probs(net_output, log_probs=True)
+        lprobs = model.get_normalized_probs(net_output, log_probs=True, temperature=0.0)
         # gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
         # print(lprobs.size())
         # gsm_samples = self.sparsemax(lprobs, 2)
@@ -140,7 +141,9 @@ class AlignedBertLossCriterion(FairseqCriterion):
         # print(self.hard_gumbel_softmax)
         # print(self.eps_gumbel_softmax)
         if self.marginalization == 'raw':
-            gsm_samples = model.get_normalized_probs(net_output, log_probs=False)
+            gsm_samples = model.get_normalized_probs(net_output, log_probs=False, temperature=0.0)
+        if self.marginalization == 'softmax-temp':
+            gsm_samples = model.get_normalized_probs(net_output, log_probs=False, temperature=self.tau_gumbel_softmax)
         elif self.marginalization == 'sparsemax':
             gsm_samples = self.sparsemax(net_output[0], 2)
         elif self.marginalization == 'gumbel-softmax':
@@ -156,27 +159,27 @@ class AlignedBertLossCriterion(FairseqCriterion):
         target = model.get_targets(sample, net_output)
 
         # Calculate entropy
-        # probs = model.get_normalized_probs(net_output, log_probs=False)
-        # average_entropy = 0.
-        # rows, cols = target.size()
-        # refs_list = []
-        # preds_list = []
-        # for i in range(rows):
-        #     ref_sentence = []
-        #     pred_sentence = []
-        #     for j in range(cols):
-        #         ref_word = model.decoder.dictionary.__getitem__(target[i, j].cpu().detach().numpy())
-        #         pred_word = model.decoder.dictionary.__getitem__(gsm_samples[i, j].argmax().cpu().detach().numpy())
-        #         prob_entropy = Categorical(gsm_samples[i, j, :]).entropy().cpu().detach().numpy()
-        #         if target[i, j] != self.pad_token_id:
-        #             average_entropy += prob_entropy
-        #             ref_sentence.append(ref_word)
-        #             pred_sentence.append(pred_word)
-        #     refs_list.append(" ".join(ref_sentence))
-        #     preds_list.append(" ".join(pred_sentence))
-        #     # print('Tgt:  ', " ".join(tmp_target_words))
-        #     # print('Pred:  ', " ".join(tmp_pred_words))
-        # average_entropy = average_entropy / (rows*cols)
+        #probs = model.get_normalized_probs(net_output, log_probs=False)
+        #average_entropy = 0.
+        #rows, cols = target.size()
+        #refs_list = []
+        #preds_list = []
+        #for i in range(rows):
+        #    ref_sentence = []
+        #   pred_sentence = []
+        #    for j in range(cols):
+        #        ref_word = model.decoder.dictionary.__getitem__(target[i, j].cpu().detach().numpy())
+        #        pred_word = model.decoder.dictionary.__getitem__(gsm_samples[i, j].argmax().cpu().detach().numpy())
+        #        prob_entropy = Categorical(gsm_samples[i, j, :]).entropy().cpu().detach().numpy()
+        #        if target[i, j] != self.pad_token_id:
+        #            average_entropy += prob_entropy
+        #            ref_sentence.append(ref_word)
+        #            pred_sentence.append(pred_word)
+        #    refs_list.append(" ".join(ref_sentence))
+        #    preds_list.append(" ".join(pred_sentence))
+            # print('Tgt:  ', " ".join(tmp_target_words))
+            # print('Pred:  ', " ".join(tmp_pred_words))
+        #average_entropy = average_entropy / (rows*cols)
 
         # print(target[0, 10])
         # print(len(model.decoder.dictionary.symbols))
@@ -237,7 +240,7 @@ class AlignedBertLossCriterion(FairseqCriterion):
         # print('F-Bert: ', (f_bert/batch_size).detach().cpu().numpy())
         print_acc = (num_correct.detach().cpu().numpy() / total_num.detach().cpu().numpy())*100
         print_loss = (loss).detach().cpu().numpy()
-        self.loss_stats_file.write(str(print_acc) + '\t' + str(print_loss) + '\n')
+        #self.loss_stats_file.write(str(average_entropy) + '\t' + str(print_loss) + '\n')
 
         return loss, num_correct, total_num
 

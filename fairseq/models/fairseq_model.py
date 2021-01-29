@@ -47,10 +47,12 @@ class BaseFairseqModel(nn.Module):
         self,
         net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
         log_probs: bool,
+        temperature: float,
         sample: Optional[Dict[str, Tensor]] = None,
     ):
         """Get normalized probabilities (or log probs) from a net's output."""
-        return self.get_normalized_probs_scriptable(net_output, log_probs, sample)
+        return self.get_normalized_probs_scriptable(net_output, log_probs, T=temperature, sample=sample)
+
 
     # TorchScript doesn't support super() method so that the scriptable Subclass
     # can't access the base class model in Torchscript.
@@ -60,17 +62,21 @@ class BaseFairseqModel(nn.Module):
         self,
         net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
         log_probs: bool,
+        T: float,
         sample: Optional[Dict[str, Tensor]] = None,
     ):
         """Scriptable helper function for get_normalized_probs in ~BaseFairseqModel"""
         if hasattr(self, "decoder"):
-            return self.decoder.get_normalized_probs(net_output, log_probs, sample)
+            return self.decoder.get_normalized_probs(net_output, log_probs, T, sample)
         elif torch.is_tensor(net_output):
             logits = net_output.float()
             if log_probs:
                 return F.log_softmax(logits, dim=-1)
             else:
-                return F.softmax(logits, dim=-1)
+                if T > 0.0:
+                    return F.softmax(logits/T, dim=-1)
+                else:
+                    return F.softmax(logits, dim=-1)
         raise NotImplementedError
 
     def extract_features(self, *args, **kwargs):
@@ -524,7 +530,7 @@ class FairseqEncoderModel(BaseFairseqModel):
         """
         return self.encoder(src_tokens, src_lengths, **kwargs)
 
-    def get_normalized_probs(self, net_output, log_probs, sample=None):
+    def get_normalized_probs(self, net_output, log_probs, T=0.0, sample=None):
         """Get normalized probabilities (or log probs) from a net's output."""
         encoder_out = net_output["encoder_out"]
         if torch.is_tensor(encoder_out):
@@ -532,7 +538,10 @@ class FairseqEncoderModel(BaseFairseqModel):
             if log_probs:
                 return F.log_softmax(logits, dim=-1)
             else:
-                return F.softmax(logits, dim=-1)
+                if T > 0.0:
+                    return F.softmax(logits/T, dim=-1)
+                else:
+                    return F.softmax(logits, dim=-1)
         raise NotImplementedError
 
     def max_positions(self):

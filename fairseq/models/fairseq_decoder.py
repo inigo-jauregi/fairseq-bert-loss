@@ -59,6 +59,7 @@ class FairseqDecoder(nn.Module):
         self,
         net_output: Tuple[Tensor, Optional[Dict[str, List[Optional[Tensor]]]]],
         log_probs: bool,
+        T: float,
         sample: Optional[Dict[str, Tensor]] = None,
     ):
         """Get normalized probabilities (or log probs) from a net's output."""
@@ -76,7 +77,10 @@ class FairseqDecoder(nn.Module):
         if log_probs:
             return utils.log_softmax(logits, dim=-1, onnx_trace=self.onnx_trace)
         else:
-            return utils.softmax(logits, dim=-1, onnx_trace=self.onnx_trace)
+            if T > 0.0:
+                return utils.softmax(logits/T, dim=-1, onnx_trace=self.onnx_trace)
+            else:
+                return utils.softmax(logits, dim=-1, onnx_trace=self.onnx_trace)
 
     def max_positions(self):
         """Maximum input length supported by the decoder."""

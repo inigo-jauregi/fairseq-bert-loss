@@ -2,7 +2,7 @@ DATASET_FOLDER=datasets/de-en_IWSLT2014/data
 PREP_TEST=good
 REF=test/edunov_test.tok.clean.lwc.bpe.en
 SEED_NUM=3
-MODEL=models/MAX_F_BERT_sparsemax.CONVERGENCE_LR_5e-5/seed_$SEED_NUM
+MODEL=models/MAX_BERT_SOFTMAX_TEMP_BERT_SCORE_CONVERGENCE_LR_5e-5/seed_$SEED_NUM
 EPOCH=_best.$PREP_TEST
 
 # Obtain predictions

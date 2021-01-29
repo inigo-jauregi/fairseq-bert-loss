@@ -13,7 +13,7 @@ from fairseq.data import data_utils
 from fairseq.models import FairseqIncrementalDecoder
 from fairseq.models.fairseq_encoder import EncoderOut
 from torch import Tensor
-
+from torch.distributions import Categorical
 
 class SequenceGenerator(nn.Module):
     def __init__(
@@ -93,6 +93,9 @@ class SequenceGenerator(nn.Module):
         self.should_set_src_lengths = hasattr(self.search, 'needs_src_lengths') and self.search.needs_src_lengths
 
         self.model.eval()
+
+        self.loss_stats_file = open('datasets/de-en_IWSLT2014/data/models/ALIGNED_BERT_RAW_BERT_SCORE_CONVERGENCE_LR_5e-5/'
+                                    'seed_1/inference_entropy_distribution.txt', 'w')
 
     def cuda(self):
         self.model.cuda()
@@ -286,12 +289,16 @@ class SequenceGenerator(nn.Module):
                     encoder_outs, reorder_state
                 )
 
-            lprobs, avg_attn_scores = self.model.forward_decoder(
+            lprobs, avg_attn_scores, probs = self.model.forward_decoder(
                 tokens[:, : step + 1],
                 encoder_outs,
                 incremental_states,
                 self.temperature,
             )
+            prob_entropy = Categorical(probs).entropy().cpu().detach().numpy()[0]
+            # print(prob_entropy)
+            self.loss_stats_file.write(str(prob_entropy) + '\n')
+            lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
             lprobs[lprobs != lprobs] = torch.tensor(-math.inf).to(lprobs)
             # print('1: ', torch.max(lprobs[0,:]))
             # print('2: ', torch.max(lprobs[1, :]))
@@ -813,11 +820,15 @@ class EnsembleModel(nn.Module):
             )
 
             probs = model.get_normalized_probs(
-                decoder_out_tuple, log_probs=True, sample=None
+                decoder_out_tuple, log_probs=True, temperature=0.0, sample=None
+            )
+            probs_prob = model.get_normalized_probs(
+                decoder_out_tuple, log_probs=False, temperature=0.0, sample=None
             )
             probs = probs[:, -1, :]
+            probs_prob = probs_prob[:, -1, :]
             if self.models_size == 1:
-                return probs, attn
+                return probs, attn, probs_prob
 
             log_probs.append(probs)
             if attn is not None:

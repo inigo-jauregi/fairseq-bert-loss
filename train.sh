@@ -1,7 +1,7 @@
 
 DATASET_FOLDER=datasets/de-en_IWSLT2014/data
-MODEL=models/BASELINE_TRANS_convergence_fairseq
-for SEED_NUM in 2 3; do
+MODEL=models/BASELINE_TRANS_convergence_fairseq_ENTROPY
+for SEED_NUM in 1; do
   MODEL=models/BASELINE_TRANS_convergence_fairseq
   CUDA_VISIBLE_DEVICES=0 fairseq-train $DATASET_FOLDER/prep_files/preprocess_good \
                --lr 5e-4 -s de -t en --optimizer adam --max-tokens 4096 --clip-norm 0.0 --dropout 0.3 \
