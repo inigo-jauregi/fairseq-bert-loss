@@ -236,7 +236,7 @@ class BertLossCriterion(FairseqCriterion):
         return True
 
     @staticmethod
-    def sparsemax(input,dim_selected=-1):
+    def sparsemax(input, dim_selected=-1):
         """sparsemax.
         Args:
             input (torch.Tensor): Input tensor. First dimension should be the batch size
