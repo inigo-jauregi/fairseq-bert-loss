@@ -527,7 +527,7 @@ def cache_scibert(model_type, cache_folder="~/.cache/torch/transformers"):
 
 def compute_loss(
     model, emb_matrix, refs, preds, pad_token_id, verbose=False, batch_size=64, device="cuda:0", all_layers=False,
-        soft_bert_score=False, rewe=None
+        soft_bert_score=False, rewe=None, both_tensors=False
 ):
     """
     Compute BERTScore.
@@ -555,8 +555,9 @@ def compute_loss(
     # stats_dict = dict()
     # for batch_start in iter_range:
     #     sen_batch = sentences[batch_start : batch_start + batch_size]
-    pred_bert_embs, ref_bert_embs, masks = get_bert_embedding_from_tensors(
-        preds, refs, model, emb_matrix, pad_token_id, device=device, all_layers=all_layers, rewe=rewe)
+    pred_bert_embs, ref_bert_embs, masks_pred, masks_ref = get_bert_embedding_from_tensors(
+        preds, refs, model, emb_matrix, pad_token_id, device=device, all_layers=all_layers, rewe=rewe,
+        both_tensors=both_tensors)
 
     # embs = embs.cpu()
     # masks = masks.cpu()
@@ -598,7 +599,7 @@ def compute_loss(
     # ref_stats = pad_batch_stats(batch_refs, stats_dict, device)
     # hyp_stats = pad_batch_stats(batch_hyps, stats_dict, device)
 
-    prec, rec, f1 = custom_greedy_cos(ref_bert_embs, masks, pred_bert_embs, masks, all_layers,
+    prec, rec, f1 = custom_greedy_cos(ref_bert_embs, masks_ref, pred_bert_embs, masks_pred, all_layers,
                                       soft_bert_score=soft_bert_score)
     # preds.append(torch.stack((P, R, F1), dim=-1).cpu())
     # preds = torch.cat(preds, dim=1 if all_layers else 0)
@@ -608,7 +609,7 @@ def compute_loss(
 
 def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix, pad_token_id,
                                     batch_size=-1, device="cuda:0",
-                                    all_layers=False, rewe=None):
+                                    all_layers=False, rewe=None, both_tensors=False):
     """
     Compute BERT embedding in batches.
 
@@ -621,11 +622,20 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
 
     # padded_sens, padded_idf, lens, mask = collate_idf(all_sens, tokenizer, idf_dict, device=device)
     mask = custom_masking(refs_tensor, pad_token_id, device)
+    if both_tensors:
+        mask_preds = custom_masking(preds_tensor, pad_token_id, device)
+    else:
+        mask_preds = mask
 
     # TODO: Calculate prob*Embs matrix
-    batch_size, max_seq_len, vocab_size = preds_tensor.size()
+    if both_tensors:
+        batch_size, max_seq_len = preds_tensor.size()
+    else:
+        batch_size, max_seq_len, vocab_size = preds_tensor.size()
     emb_size = emb_matrix.size()[-1]
     if rewe:
+        preds_tensor_embs = preds_tensor
+    elif both_tensors:
         preds_tensor_embs = preds_tensor
     else:
         preds_tensor_embs = torch.mm(preds_tensor.contiguous().view(-1, vocab_size), emb_matrix)
@@ -635,9 +645,14 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
 
     # embeddings = []
     # with torch.no_grad():
-    preds_bert_embedding = custom_bert_encode(
-        model, preds_tensor_embs, attention_mask=mask, all_layers=all_layers, embs=True
-    )
+    if both_tensors:
+        preds_bert_embedding = custom_bert_encode(
+            model, preds_tensor_embs, attention_mask=mask_preds, all_layers=all_layers
+        )
+    else:
+        preds_bert_embedding = custom_bert_encode(
+            model, preds_tensor_embs, attention_mask=mask_preds, all_layers=all_layers, embs=True
+        )
     refs_bert_embedding = custom_bert_encode(
         model, refs_tensor, attention_mask=mask, all_layers=all_layers
     )
@@ -646,7 +661,7 @@ def get_bert_embedding_from_tensors(preds_tensor, refs_tensor, model, emb_matrix
 
     # total_embedding = torch.cat(embeddings, dim=0)
 
-    return preds_bert_embedding, refs_bert_embedding, mask
+    return preds_bert_embedding, refs_bert_embedding, mask, mask_preds
 
 
 def custom_greedy_cos(ref_embedding, ref_masks, hyp_embedding, hyp_masks, all_layers=False, soft_bert_score=False):

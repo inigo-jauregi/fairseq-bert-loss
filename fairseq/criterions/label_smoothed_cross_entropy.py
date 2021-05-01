@@ -61,6 +61,7 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         2) the sample size, which is used as the denominator for the gradient
         3) logging outputs to display while training
         """
+        print(sample['net_input'])
         net_output = model(**sample['net_input'])
         loss, nll_loss, n_correct, total_n = self.compute_loss(model, net_output, sample, reduce=reduce)
         sample_size = sample['target'].size(0) if self.sentence_avg else sample['ntokens']
@@ -100,8 +101,8 @@ class LabelSmoothedCrossEntropyCriterion(FairseqCriterion):
         #             pred_sentence.append(pred_word)
         #     refs_list.append(" ".join(ref_sentence))
         #     preds_list.append(" ".join(pred_sentence))
-        #     # print(" ".join(ref_sentence))
-        #     # print(" ".join(pred_sentence))
+        #     print(" ".join(ref_sentence), len(ref_sentence))
+        #     # print(" ".join(pred_sentence), len(pred_sentence))
         # average_entropy = average_entropy / (rows * cols)
 
 
