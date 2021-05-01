@@ -54,7 +54,7 @@ class Reinforce(FairseqCriterion):
         self.bert_model = bert_model
         self.max_len_decoding = max_len_decoding
 
-        self.bert_scorer = BERTScorer(self.bert_model)  # , device='cpu')
+        self.bert_scorer = BERTScorer(self.bert_model, device='cpu')
         self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
 
     @staticmethod
@@ -78,7 +78,32 @@ class Reinforce(FairseqCriterion):
         )
 
         # Decode translations sequentially (greedy decoding)
-        pred_toks, lprobs = sequential_decoding(model, encoder_out, max_len_decoding=self.max_len_decoding)
+        pred_toks, lprobs = sequential_decoding(model, encoder_out, max_len_decoding=self.max_len_decoding,
+                                                device=self.bert_scorer.device)
+
+        # Calculate entropy
+        # probs = model.get_normalized_probs(net_output, log_probs=False)
+        average_entropy = 0.
+        rows, cols = target.size()
+        refs_list = []
+        preds_list = []
+        for i in range(rows):
+            ref_sentence = []
+            pred_sentence = []
+            for j in range(cols):
+                ref_word = model.decoder.dictionary.__getitem__(target[i, j].cpu().detach().numpy())
+                pred_word = model.decoder.dictionary.__getitem__(lprobs[i, j].argmax().cpu().detach().numpy())
+                # prob_entropy = Categorical(gsm_samples[i, j, :]).entropy().cpu().detach().numpy()
+                if target[i, j] != self.pad_token_id:
+                    # average_entropy += prob_entropy
+                    ref_sentence.append(ref_word)
+                    pred_sentence.append(pred_word)
+            refs_list.append(" ".join(ref_sentence))
+            preds_list.append(" ".join(pred_sentence))
+            print('Tgt:  ', " ".join(ref_sentence))
+            print('Pred:  ', " ".join(pred_sentence))
+        # average_entropy = average_entropy / (rows*cols)
+
         # Extract prob values
         pred_toks_col = pred_toks.view(-1, 1).squeeze()
         lprobs_col = lprobs.view(-1, lprobs.size()[-1])
@@ -100,15 +125,24 @@ class Reinforce(FairseqCriterion):
         loss = loss.sum()
 
         # Calculate accuracy
-        acc_target = target.view(-1, 1).squeeze()
-        pred = lprobs.contiguous().view(-1, lprobs.size(-1)).max(1)[1]
-        non_padding = acc_target.view(-1, 1).ne(model.decoder.dictionary.pad_index).squeeze()
-        total_num = non_padding.sum()
-        num_correct = pred.eq(acc_target) \
-            .masked_select(non_padding) \
-            .sum()
+        # acc_target = target.view(-1, 1).squeeze()
+        # pred = lprobs.contiguous().view(-1, lprobs.size(-1)).max(1)[1]
+        # non_padding = acc_target.view(-1, 1).ne(model.decoder.dictionary.pad_index).squeeze()
+        # total_num = non_padding.sum()
+        # num_correct = pred.eq(acc_target) \
+        #     .masked_select(non_padding) \
+        #     .sum()
 
-        return loss, f_bert, num_correct, total_num
+        sample_size = sample['ntokens']
+        logging_output = {
+            'loss': loss.data,
+            # 'ntokens': sample['ntokens'],
+            'n_sentences': sample['target'].size(0),
+            'sample_size': sample_size,
+            'f_bert': f_bert
+        }
+
+        return loss, sample_size, logging_output
 
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
@@ -119,12 +153,12 @@ class Reinforce(FairseqCriterion):
         # ntokens = sum(log.get('ntokens', 0) for log in logging_outputs)
         n_sentences = sum(log.get('n_sentences', 0) for log in logging_outputs)
         # print('Avg ', f_bert_sum / n_sentences)
-        n_correct = sum(log.get('n_correct', 0) for log in logging_outputs)
-        total_n = sum(log.get('total_n', 0) for log in logging_outputs)
+        # n_correct = sum(log.get('n_correct', 0) for log in logging_outputs)
+        # total_n = sum(log.get('total_n', 0) for log in logging_outputs)
 
         metrics.log_scalar('loss', loss_sum / n_sentences, n_sentences, round=3)
         metrics.log_scalar('f_bert', f_bert_sum / n_sentences, n_sentences, round=3)
-        metrics.log_scalar('accuracy', float(n_correct) / float(total_n), total_n, round=3)
+        # metrics.log_scalar('accuracy', float(n_correct) / float(total_n), total_n, round=3)
         # metrics.log_derived('ppl', lambda meters: utils.get_perplexity(meters['loss'].avg))
 
 
@@ -136,7 +170,7 @@ def _forward_one(model, encoded_source, tokens, incremental_states=None, tempera
                                          **decoder_kwargs))
     else:
         decoder_out = list(model.decoder(tokens, encoded_source, **decoder_kwargs))
-    decoder_out[0] = decoder_out[0][:, -1:, :]
+    decoder_out[0] = decoder_out[0][:, -1:, :].clone()
     # print(decoder_out[0].size())
     if temperature != 1.:
         decoder_out[0].div_(temperature)
@@ -149,20 +183,20 @@ def _forward_one(model, encoded_source, tokens, incremental_states=None, tempera
             attn = attn['attn']
         attn = attn[:, :, -1, :]  # B x L x t
     if return_logits:
-        logits_t = decoder_out[0][:, -1, :]
+        logits_t = decoder_out[0][:, -1, :].clone()
         return logits_t, attn
     log_probs = model.get_normalized_probs(decoder_out, log_probs=True)
-    log_probs = log_probs[:, -1, :]
+    log_probs = log_probs[:, -1, :].clone()
     return log_probs, attn
 
 
-def sequential_decoding(model, encoded_source, max_len_decoding):
+def sequential_decoding(model, encoded_source, max_len_decoding, device):
     # model.eval()
     pred_toks = []
     batch_size = encoded_source[0].size()[1]
-    eos_token_id = torch.tensor(model.decoder.dictionary.eos())
-    pad_token_id = torch.tensor(model.decoder.dictionary.pad())
-    context = torch.tensor([model.decoder.dictionary.bos()]*batch_size).unsqueeze(1)
+    eos_token_id = torch.tensor(model.decoder.dictionary.eos()).to(device)
+    pad_token_id = torch.tensor(model.decoder.dictionary.pad()).to(device)
+    context = torch.tensor([model.decoder.dictionary.bos()]*batch_size).to(device).unsqueeze(1)
     states = {}
     all_lprobs = []
     masking_matrix = []
@@ -173,15 +207,17 @@ def sequential_decoding(model, encoded_source, max_len_decoding):
         lprobs[:, pad_token_id] = -math.inf  # never select pad  (MAYBE I CAN ADD MIN LENGTH?)
         pred_tok = lprobs.argmax(dim=1, keepdim=True)
         # Check if predicted token is <eos>
-        pred_token_bool = torch.where(pred_tok == eos_token_id, torch.tensor(1.0), torch.tensor(0.0))
+        pred_token_bool = torch.where(pred_tok == eos_token_id, torch.tensor(1.0).to(device),
+                                      torch.tensor(0.0).to(device))
         if len(aux_masking_matrix) > 0:
             pred_token_bool = torch.logical_or(aux_masking_matrix[-1], pred_token_bool)
-            pred_token_bool = torch.where(pred_token_bool == True, torch.tensor(1.0), torch.tensor(0.0))
-            see_if_previous_was_eos = torch.logical_or(masking_matrix[-1], aux_masking_matrix[-1])
-            pred_token_bool_true = torch.logical_and(see_if_previous_was_eos, pred_token_bool)
+            pred_token_bool = torch.where(pred_token_bool == True, torch.tensor(1.0).to(device),
+                                          torch.tensor(0.0).to(device))
+            see_if_previous_was_eos = torch.logical_or(masking_matrix[-1], aux_masking_matrix[-1]).to(device)
+            pred_token_bool_true = torch.logical_and(see_if_previous_was_eos, pred_token_bool).to(device)
             masking_matrix.append(pred_token_bool_true)
         else:
-            masking_matrix.append(torch.zeros(pred_token_bool.size()))
+            masking_matrix.append(torch.zeros(pred_token_bool.size()).to(device))
         aux_masking_matrix.append(pred_token_bool)
 
         pred_toks.append(pred_tok)
@@ -200,6 +236,6 @@ def sequential_decoding(model, encoded_source, max_len_decoding):
     # Apply masking (padding tokens after the <eos> token.)
     pred_toks[masking_matrix == 1.0] = pad_token_id
     # Apply masking (set probability values to zero)
-    all_lprobs[masking_matrix == 1.0] = torch.zeros(all_lprobs.size()[-1])
+    all_lprobs[masking_matrix == 1.0] = torch.zeros(all_lprobs.size()[-1]).to(device)
 
     return pred_toks, all_lprobs

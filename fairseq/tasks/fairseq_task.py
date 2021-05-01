@@ -410,6 +410,7 @@ class FairseqTask(object):
         """
         model.train()
         model.set_num_updates(update_num)
+        # with torch.autograd.set_detect_anomaly(True):
         with torch.autograd.profiler.record_function("forward"):
             loss, sample_size, logging_output = criterion(model, sample)
         if ignore_grad:

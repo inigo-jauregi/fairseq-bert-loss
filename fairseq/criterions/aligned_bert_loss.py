@@ -50,7 +50,7 @@ class AlignedBertLossCriterion(FairseqCriterion):
         self.marginalization = marginalization
         self.force_alignment = force_alignment
 
-        self.bert_scorer = BERTScorer(self.bert_model, soft_bert_score=soft_bert_score)  # , device='cpu')
+        self.bert_scorer = BERTScorer(self.bert_model, soft_bert_score=soft_bert_score, device='cpu')
         self.pad_token_id = self.bert_scorer._tokenizer.convert_tokens_to_ids('[PAD]')
 
         # Gumbel-Softmax hyperparameters
@@ -177,6 +177,25 @@ class AlignedBertLossCriterion(FairseqCriterion):
         #     # print('Tgt:  ', " ".join(tmp_target_words))
         #     # print('Pred:  ', " ".join(tmp_pred_words))
         # average_entropy = average_entropy / (rows*cols)
+
+        rows, cols = target.size()
+        refs_list = []
+        preds_list = []
+        for i in range(rows):
+            ref_sentence = []
+            pred_sentence = []
+            for j in range(cols):
+                ref_word = model.decoder.dictionary.__getitem__(target[i, j].cpu().detach().numpy())
+                pred_word = model.decoder.dictionary.__getitem__(gsm_samples[i, j].argmax().cpu().detach().numpy())
+                # prob_entropy = Categorical(gsm_samples[i, j, :]).entropy().cpu().detach().numpy()
+                if target[i, j] != self.pad_token_id:
+                    # average_entropy += prob_entropy
+                    ref_sentence.append(ref_word)
+                    pred_sentence.append(pred_word)
+            refs_list.append(" ".join(ref_sentence))
+            preds_list.append(" ".join(pred_sentence))
+            print('Tgt:  ', " ".join(ref_sentence))
+            print('Pred:  ', " ".join(pred_sentence))
 
         # print(target[0, 10])
         # print(len(model.decoder.dictionary.symbols))
