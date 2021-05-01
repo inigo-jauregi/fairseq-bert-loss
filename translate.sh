@@ -1,7 +1,7 @@
 
 DATASET_FOLDER=datasets/de-en_IWSLT2014/data
-MODEL=models/MAX_F_BERT_sparsemax.CONVERGENCE_LR_5e-5
-SEED_NUM=3
+MODEL=models/MAX_F_BERT_gumbel-softmax.CONVERGENCE_LR_5e-5
+SEED_NUM=1_good
 PREP_TEST=good
 EPOCH=_best
 CUDA_VISIBLE_DEVICES=0 fairseq-generate $DATASET_FOLDER/prep_files/preprocess_$PREP_TEST \

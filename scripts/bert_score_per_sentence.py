@@ -25,11 +25,8 @@ def main(bert_model, preds_path, refs_path, output_path, device):
     # Scorer
     results = score(preds_list, refs_list, model_type=bert_model, device=device, verbose=True)
     output_file = open(output_path, 'w')
-    avg_results = []
-    for res in results:
-        val = np.average(res.numpy())
-        avg_results.append(val)
-    output_file.write('Prec: ' + str(avg_results[0]) + ' Rec: ' + str(avg_results[1]) + ' F1: ' +str(avg_results[2]))
+    for res in results[2]:
+        output_file.write(str(res.numpy())+'\n')
     output_file.close()
 
 

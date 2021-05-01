@@ -7,7 +7,7 @@ TOKENIZER=$SCRIPTS/tokenizer/tokenizer.perl
 LC=$SCRIPTS/tokenizer/lowercase.perl
 CLEAN=$SCRIPTS/training/clean-corpus-n.perl
 BPEROOT=../subword-nmt/subword_nmt
-BPE_TOKENS=32000
+BPE_TOKENS=10000
 BERT_MODEL=pretrained-LMs/dkleczek/bert-base-polish-uncased-v1
 
 if [ ! -d "$SCRIPTS" ]; then
@@ -15,12 +15,11 @@ if [ ! -d "$SCRIPTS" ]; then
     exit
 fi
 
-src=en
-tgt=pl
-dataset=datasets/pl-en_TEDtalks
-dataset_out=datasets/en-pl_TEDtalks
+src=de
+tgt=en
+dataset=datasets/de-en_IWSLT2014
 train=train
-dev=dev2010
+dev=dev
 test=test
 
 echo "pre-processing train data..."
@@ -116,14 +115,14 @@ done
 TRAIN=$dataset_out/train/$tok.clean.lwc.not_joined
 BPE_CODE=$dataset_out/train/code
 rm -f $TRAIN
-for l in $src; do
+for l in $src $tgt; do
     cat $dataset_out/train/$train.tok.clean.lwc.$l >> $TRAIN
 done
 
 echo "learn_bpe.py on ${TRAIN}..."
 python $BPEROOT/learn_bpe.py -s $BPE_TOKENS < $TRAIN > $BPE_CODE
 
-for L in $src; do
+for L in $src $tgt; do
     echo "apply_bpe.py to train ${L}..."
     python $BPEROOT/apply_bpe.py -c $BPE_CODE < $dataset_out/train/$train.tok.clean.lwc.$L > $dataset_out/train/$train.tok.clean.lwc.bpe.$L
     echo "apply_bpe.py to dev ${L}..."
@@ -132,11 +131,11 @@ for L in $src; do
     python $BPEROOT/apply_bpe.py -c $BPE_CODE < $dataset_out/test/$test.tok.clean.lwc.$L > $dataset_out/test/$test.tok.clean.lwc.bpe.$L
 done
 
-for L in $tgt; do
-    echo "Apply BERT tokenization to train ${L}..."
-    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/train/$train.tok.clean.lwc.$L $dataset_out/train/$train.tok.clean.lwc.bpe.$L
-    echo "Apply BERT tokenization to dev ${L}..."
-    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/dev/$dev.tok.clean.lwc.$L $dataset_out/dev/$dev.tok.clean.lwc.bpe.$L
-    echo "Apply BERT tokenization to test ${L}..."
-    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/test/$test.tok.clean.lwc.$L $dataset_out/test/$test.tok.clean.lwc.bpe.$L
-done
+#for L in $tgt; do
+#    echo "Apply BERT tokenization to train ${L}..."
+#    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/train/$train.tok.clean.lwc.$L $dataset_out/train/$train.tok.clean.lwc.bpe.$L
+#    echo "Apply BERT tokenization to dev ${L}..."
+#    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/dev/$dev.tok.clean.lwc.$L $dataset_out/dev/$dev.tok.clean.lwc.bpe.$L
+#    echo "Apply BERT tokenization to test ${L}..."
+#    python scripts/bert_tokenize.py $BERT_MODEL $dataset_out/test/$test.tok.clean.lwc.$L $dataset_out/test/$test.tok.clean.lwc.bpe.$L
+#done

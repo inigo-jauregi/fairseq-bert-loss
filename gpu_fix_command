@@ -1,2 +1,2 @@
-export LD_LIBRARY_PATH=/data/ijauregi/Desktop/py36_fairseq_bert_loss/lib/python3.6/site-packages/torch/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/data/injaureg/Desktop/py36_fairseq_bert_loss/lib/python3.6/site-packages/torch/lib:$LD_LIBRARY_PATH
 

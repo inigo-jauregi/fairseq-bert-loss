@@ -2,8 +2,6 @@ import sys
 import os
 import numpy as np
 
-from fairseq.bert_score.score import score
-
 def main(output_path, hyp_pred_path, hyp_pred_path_ordered):
 
 
