@@ -255,7 +255,7 @@ class BERTScorer:
 
     def bert_loss_calculation(self, preds, refs, verbose=False, batch_size=64,
                               return_hash=False, out_type='f1', pad_token_id=None, rewe=None,
-                              both_tensors=False):
+                              both_tensors=False, idf_dict_true=False):
         """
         Args:
             - :param: `preds` (torch.tensor BxTxE): predicted logits
@@ -281,13 +281,13 @@ class BERTScorer:
         #     print("calculating scores...")
         #     start = time.perf_counter()
 
-        # if self.idf:
-        #     assert self._idf_dict, "IDF weights are not computed"
-        #     idf_dict = self._idf_dict
-        # else:
-        #     idf_dict = defaultdict(lambda: 1.0)
-        #     idf_dict[self._tokenizer.sep_token_id] = 0
-        #     idf_dict[self._tokenizer.cls_token_id] = 0
+        if idf_dict_true:
+            assert self._idf_dict, "IDF weights are not computed"
+            idf_dict = self._idf_dict
+        else:
+            idf_dict = defaultdict(lambda: 1.0)
+            idf_dict[self._tokenizer.sep_token_id] = 0
+            idf_dict[self._tokenizer.cls_token_id] = 0
 
         # with torch.no_grad():
         #     all_vals = torch.zeros(1).to(self.device)
@@ -304,6 +304,7 @@ class BERTScorer:
             refs,
             preds,
             pad_token_id,
+            idf_dict,
             verbose=verbose,
             device=self.device,
             batch_size=batch_size,
