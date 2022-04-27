@@ -2,11 +2,11 @@
 #
 # Adapted from https://github.com/facebookresearch/MIXER/blob/master/prepareData.shjj
 
-SCRIPTS=../mosesdecoder/scripts
+SCRIPTS=mosesdecoder/scripts
 TOKENIZER=$SCRIPTS/tokenizer/tokenizer.perl
 LC=$SCRIPTS/tokenizer/lowercase.perl
 CLEAN=$SCRIPTS/training/clean-corpus-n.perl
-BPEROOT=../subword-nmt/subword_nmt
+BPEROOT=subword-nmt/subword_nmt
 BPE_TOKENS=10000
 BERT_MODEL=pretrained-LMs/dkleczek/bert-base-polish-uncased-v1
 
@@ -18,6 +18,7 @@ fi
 src=de
 tgt=en
 dataset=datasets/de-en_IWSLT2014
+dataset_out=datasets/de-en_IWSLT2014_out
 train=train
 dev=dev
 test=test
