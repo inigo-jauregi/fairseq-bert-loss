@@ -69,7 +69,7 @@ done
 
 echo "pre-processing valid/test data..."
 for l in $src $tgt; do
-    for o in `ls $orig/$lang/IWSLT15.TED*.$l.xml`; do
+    for o in `ls $orig/$lang/IWSLT15.TED.$l.xml`; do
     fname=${o##*/}
     f=$tmp/${fname%.*}
     echo $o $f
@@ -97,7 +97,7 @@ for l in $src $tgt; do
         > $tmp/test.$l
 done
 
-TRAIN=$tmp/train.en-de
+TRAIN=$tmp/train.en-vi
 BPE_CODE=$prep/code
 rm -f $TRAIN
 for l in $src $tgt; do
