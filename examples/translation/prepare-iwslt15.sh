@@ -15,7 +15,7 @@ CLEAN=$SCRIPTS/training/clean-corpus-n.perl
 BPEROOT=subword-nmt/subword_nmt
 BPE_TOKENS=10000
 
-URL="http://dl.fbaipublicfiles.com/fairseq/data/iwslt14/de-en.tgz"
+URL="https://github.com/BaoNguyenHCMUS/fairseq-bert-loss/blob/master/en-vi.tgz"
 GZ=en-vi.tgz
 
 if [ ! -d "$SCRIPTS" ]; then
