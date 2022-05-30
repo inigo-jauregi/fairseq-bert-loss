@@ -26,7 +26,7 @@ fi
 src=en
 tgt=vi
 lang=en-vi
-prep=iwslt14.tokenized.en-vi
+prep=iwslt15.tokenized.en-vi
 tmp=$prep/tmp
 orig=orig
 
@@ -69,7 +69,7 @@ done
 
 echo "pre-processing valid/test data..."
 for l in $src $tgt; do
-    for o in `ls $orig/$lang/IWSLT14.TED*.$l.xml`; do
+    for o in `ls $orig/$lang/IWSLT15.TED*.$l.xml`; do
     fname=${o##*/}
     f=$tmp/${fname%.*}
     echo $o $f
@@ -89,11 +89,11 @@ for l in $src $tgt; do
     awk '{if (NR%23 == 0)  print $0; }' $tmp/train.tags.en-vi.$l > $tmp/valid.$l
     awk '{if (NR%23 != 0)  print $0; }' $tmp/train.tags.en-vi.$l > $tmp/train.$l
 
-    cat $tmp/IWSLT14.TED.dev2010.en-vi.$l \
-        $tmp/IWSLT14.TEDX.dev2012.en-vi.$l \
-        $tmp/IWSLT14.TED.tst2010.en-vi.$l \
-        $tmp/IWSLT14.TED.tst2011.en-vi.$l \
-        $tmp/IWSLT14.TED.tst2012.en-vi.$l \
+    cat $tmp/IWSLT15.TED.dev2010.en-vi.$l \
+        $tmp/IWSLT15.TED.tst2010.en-vi.$l \
+        $tmp/IWSLT15.TED.tst2011.en-vi.$l \
+        $tmp/IWSLT15.TED.tst2012.en-vi.$l \
+        $tmp/IWSLT15.TED.tst2013.en-vi.$l \
         > $tmp/test.$l
 done
 
