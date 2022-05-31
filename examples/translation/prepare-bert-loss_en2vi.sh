@@ -14,11 +14,11 @@ if [ ! -d "$SCRIPTS" ]; then
     echo "Please set SCRIPTS variable correctly to point to Moses scripts."
     exit
 fi
-dataset_out=datasets/en-vi_out\n
+dataset_out=datasets/en-vi_IWSLT2015_out\n
 src=en
 tgt=vi
-dataset=datasets/en-vi
-dataset_out=datasets/en-vi_out
+dataset=datasets/en-vi_IWSLT2015
+dataset_out=datasets/en-vi_IWSLT2015_out
 train=train
 dev=dev
 test=test
@@ -102,14 +102,14 @@ done
 
 #echo "creating train, valid, test..."
 #for l in $src $tgt; do
-#    awk '{if (NR%23 == 0)  print $0; }' $tmp/train.tags.de-en.$l > $tmp/valid.$l
-#    awk '{if (NR%23 != 0)  print $0; }' $tmp/train.tags.de-en.$l > $tmp/train.$l
+#    awk '{if (NR%23 == 0)  print $0; }' $tmp/train.tags.en-vi.$l > $tmp/valid.$l
+#    awk '{if (NR%23 != 0)  print $0; }' $tmp/train.tags.en-vi.$l > $tmp/train.$l
 #
-#    cat $tmp/IWSLT14.TED.dev2010.de-en.$l \
-#        $tmp/IWSLT14.TEDX.dev2012.de-en.$l \
-#        $tmp/IWSLT14.TED.tst2010.de-en.$l \
-#        $tmp/IWSLT14.TED.tst2011.de-en.$l \
-#        $tmp/IWSLT14.TED.tst2012.de-en.$l \
+#    cat $tmp/IWSLT14.TED.dev2010.en-vi.$l \
+#        $tmp/IWSLT14.TEDX.dev2012.en-vi.$l \
+#        $tmp/IWSLT14.TED.tst2010.en-vi.$l \
+#        $tmp/IWSLT14.TED.tst2011.en-vi.$l \
+#        $tmp/IWSLT14.TED.tst2012.en-vi.$l \
 #        > $tmp/test.$l
 #done
 
