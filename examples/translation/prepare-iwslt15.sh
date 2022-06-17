@@ -59,7 +59,7 @@ for l in $src $tgt; do
     grep -v '<reviewer' | \
     grep -v '<translator' | \
     grep -v '<translator>' | \
-    grep -v '<speaker>' |\  
+    grep -v '<speaker>' | \  
     sed -e 's/<title>//g' | \
     sed -e 's/<\/title>//g' | \
     sed -e 's/<description>//g' | \
