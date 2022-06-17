@@ -55,11 +55,11 @@ for l in $src $tgt; do
     grep -v '<url>' | \
     grep -v '<talkid>' | \
     grep -v '<keywords>' | \
-    grep -v '<reviewer>' |\
-    grep -v '<reviewer>' |\
-    grep -v '<translator>' |\
-    grep -v '<translator>' |\
-    grep -v '<speaker>' |\ 
+    grep -v '<reviewer>' | \
+    grep -v '<reviewer' | \
+    grep -v '<translator>' | \
+    grep -v '<translator' | \
+    grep -v '<speaker>' |\  
     sed -e 's/<title>//g' | \
     sed -e 's/<\/title>//g' | \
     sed -e 's/<description>//g' | \
